@@ -1,0 +1,24 @@
+# Vendor Risk Scoring Matrix
+# Used by the AI Agent to grade incoming questionnaires
+
+critical_flags:
+  - keyword: "MFA"
+    condition: "missing"
+    risk_score: 10
+    comment: "Vendor does not enforce Multi-Factor Authentication on prod access."
+
+  - keyword: "Background Checks"
+    condition: "missing"
+    risk_score: 8
+    comment: "No background checks on employees with data access."
+
+  - keyword: "Penetration Test"
+    condition: "older_than_12_months"
+    risk_score: 5
+    comment: "External Pen Test is outdated."
+
+scoring_thresholds:
+  low_risk: 0-10
+  medium_risk: 11-20
+  high_risk: 21+
+  critical_action: "Reject Vendor immediately if score > 30"
