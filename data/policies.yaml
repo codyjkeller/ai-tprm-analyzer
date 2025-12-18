@@ -1,0 +1,47 @@
+# DYNAMIC SECURITY POLICY DEFINITIONS v2.0
+
+# --- 1. UNIVERSAL BASELINE (Applies to ALL vendors) ---
+baseline:
+  access_control:
+    mfa_required: true
+    mfa_scope: "All employees and contractors"
+    password_complexity: "Minimum 12 characters, alphanumeric"
+
+  encryption:
+    at_rest: "AES-256 or equivalent"
+    in_transit: "TLS 1.2 or higher"
+
+  incident_response:
+    reporting_sla: "Must notify within 24 hours of confirmed breach"
+
+# --- 2. INDUSTRY OVERLAYS ---
+industry_specific:
+  healthcare:
+    regulatory_framework: "HIPAA"
+    required_agreements: ["Business Associate Agreement (BAA)"]
+    data_retention: "Minimum 6 years for audit logs"
+  
+  finance:
+    regulatory_framework: "GLBA / SOX"
+    audit_frequency: "Annual independent penetration test"
+    data_sovereignty: "Data must reside within US borders"
+
+  tech_saas:
+    compliance_cert: "SOC 2 Type II"
+    app_security: "OWASP Top 10 mitigation evidence required"
+
+# --- 3. SCALE & STRUCTURE OVERLAYS ---
+size_specific:
+  startup: # < 100 Employees
+    business_continuity: "Backup testing annually"
+    insurance: "Cyber Liability > $1M"
+  
+  enterprise: # > 1000 Employees
+    business_continuity: "RTO < 4 hours, RPO < 1 hour"
+    insurance: "Cyber Liability > $5M"
+
+structure_specific:
+  public:
+    sox_itgc: "Must demonstrate Change Management controls (Segregation of Duties)"
+  private:
+    sox_itgc: "Not required"
