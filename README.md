@@ -1,18 +1,61 @@
-# AI-Powered TPRM Analyzer
+# ⚖️ AI TPRM Risk Engine (Context-Aware)
 
-## 📌 Overview
-An automated Third-Party Risk Management (TPRM) tool designed to reduce the time spent reviewing vendor security questionnaires.
+### Dynamic Vendor Risk Assessment & Compliance Auditing
 
-This tool utilizes **Large Language Models (LLMs)** to ingest unstructured vendor responses (PDFs, Excel exports) and validate them against a defined `risk_matrix.yaml`.
-
-## 🚀 Features
-* **Auto-Grading:** Automatically assigns a risk score (Low/Med/High) based on missing controls (e.g., No MFA, Outdated Pen Test).
-* **Context Awareness:** Can distinguish between "We don't do that" and "We use a compensating control."
-* **NIST Alignment:** Maps findings back to NIST 800-53 rev5 families (AC, PE, SC).
-
-## 📂 Configuration
-* [`/config/risk_matrix.yaml`](config/risk_matrix.yaml): Define your "Deal Breakers" and risk weighting logic here.
-* [`/scripts/analyze_vendor.py`](scripts/analyze_vendor.py): The core logic for processing vendor text inputs.
+[![Status](https://img.shields.io/badge/Status-Active-success.svg)]()
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Logic](https://img.shields.io/badge/Logic-Dynamic_Overlays-purple.svg)]()
 
 ---
-*Maintained by [Cody Keller](https://github.com/codyjkeller)*
+
+### 📖 Overview
+Legacy TPRM tools treat every vendor the same. This engine uses **"Context-Aware Logic"** to dynamically generate risk frameworks based on the vendor's profile.
+
+Instead of a static checklist, the system applies **Policy Overlays**:
+* **Healthcare Vendor?** -> Automatically enforces **HIPAA BAA** & Data Retention checks.
+* **Public Company?** -> Automatically enforces **SOX ITGC** (Segregation of Duties).
+* **Enterprise Scale?** -> Automatically enforces stricter **SLA & Insurance** limits.
+
+### ⚡ Feature Highlights
+* **Dynamic Policy Overlays:** Merges a "Universal Baseline" with industry-specific rule sets (YAML-based).
+* **Hybrid Grading Engine:** Uses **GenAI (OpenAI)** for semantic analysis of unstructured answers, with a **Deterministic Fallback** for hard-fail logic (e.g., missing certifications).
+* **Rich CLI Dashboard:** Provides immediate, high-visibility risk scoring for security engineers.
+
+---
+
+### 🛠️ Quick Start
+
+**1. Clone the Repository**
+```bash
+git clone [https://github.com/codyjkeller/ai-tprm-analyzer.git](https://github.com/codyjkeller/ai-tprm-analyzer.git)
+cd ai-tprm-analyzer
+
+pip install -r requirements.txt
+python src/analyzer.py
+
+graph TD
+    A[Vendor Profile] --> B{Determine Context}
+    B -->|Healthcare?| C[Load HIPAA Overlay]
+    B -->|Public Co?| D[Load SOX Overlay]
+    B -->|Baseline| E[Load Standard Policy]
+    
+    C & D & E --> F[Master Policy Object]
+    
+    G[Vendor Answers] --> H(Risk Engine)
+    F --> H
+    
+    H --> I{AI Analysis}
+    I -->|Gap Found| J[Generate Risk Finding]
+    I -->|Compliance Met| K[Pass]
+    
+    J & K --> L[Final CLI Report]
+
+.
+├── src/
+│   └── analyzer.py          # Core Logic: Policy Merging & Risk Grading
+├── data/
+│   ├── policies.yaml        # The "Brain": Baseline rules + Context Overlays
+│   └── vendor_response.json # The "Evidence": Vendor answers & profile data
+├── requirements.txt         # Dependencies (Rich, PyYAML, OpenAI)
+└── README.md                # Documentation
+
