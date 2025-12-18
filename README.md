@@ -29,10 +29,8 @@ Instead of a static checklist, the system applies **Policy Overlays**:
 ```bash
 git clone [https://github.com/codyjkeller/ai-tprm-analyzer.git](https://github.com/codyjkeller/ai-tprm-analyzer.git)
 cd ai-tprm-analyzer
-
 pip install -r requirements.txt
 python src/analyzer.py
-
 graph TD
     A[Vendor Profile] --> B{Determine Context}
     B -->|Healthcare?| C[Load HIPAA Overlay]
@@ -49,7 +47,6 @@ graph TD
     I -->|Compliance Met| K[Pass]
     
     J & K --> L[Final CLI Report]
-
 .
 ├── src/
 │   └── analyzer.py          # Core Logic: Policy Merging & Risk Grading
@@ -58,4 +55,3 @@ graph TD
 │   └── vendor_response.json # The "Evidence": Vendor answers & profile data
 ├── requirements.txt         # Dependencies (Rich, PyYAML, OpenAI)
 └── README.md                # Documentation
-
