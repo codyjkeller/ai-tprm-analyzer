@@ -1,0 +1,16 @@
+{
+  "vendor_profile": {
+    "name": "HealthTech_Solutions_Inc",
+    "industry": "healthcare",
+    "size": "enterprise",
+    "type": "public"
+  },
+  "answers": {
+    "mfa_status": "MFA is enforced for employees. Contractors are currently exempt.",
+    "encryption_standard": "AES-256 used for all databases.",
+    "incident_notification": "Standard SLA is 72 hours.",
+    "compliance_certs": "We hold ISO 27001 but do not have a SOC 2 report.",
+    "agreements": "We are willing to sign a BAA.",
+    "change_management": "Developers have access to push code to production without approval."
+  }
+}
