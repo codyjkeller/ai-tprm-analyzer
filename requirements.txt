@@ -2,3 +2,5 @@ pyyaml
 rich
 openai
 python-dotenv
+pandas
+colorama
