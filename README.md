@@ -1,11 +1,5 @@
 ### 📋 Instructions
 
-1. **Rename your screenshot:** Change the file name from `Screenshot...` to **`demo.png`** and move it into your project folder.
-2. **Copy-Paste:** Replace your entire `README.md` file with the content below.
-
----
-
-```markdown
 # ⚖️ AI TPRM Risk Engine (Context-Aware)
 
 ### Dynamic Vendor Risk Assessment & Compliance Auditing
