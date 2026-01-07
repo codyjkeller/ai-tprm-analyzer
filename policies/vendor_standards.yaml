@@ -1,0 +1,20 @@
+security_policy:
+  mfa_enforcement:
+    required: true
+    weight: 20
+    acceptable_answers: ["Yes", "Enforced", "True"]
+  
+  data_encryption_rest:
+    required: true
+    weight: 20
+    acceptable_answers: ["AES-256", "AES-128", "Encrypted"]
+  
+  incident_response_plan:
+    required: true
+    weight: 15
+    acceptable_answers: ["Tested Annually", "Yes", "Active"]
+  
+  soc2_compliance:
+    required: false
+    weight: 10
+    acceptable_answers: ["Type 1", "Type 2", "True"]
