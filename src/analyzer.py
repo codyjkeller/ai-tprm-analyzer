@@ -44,7 +44,7 @@ def load_files():
         return policy, vendor
     except FileNotFoundError:
         console.print("[bold red]❌ Error: Missing data files in /data folder.[/bold red]")
-        console.print("[yellow]   Run 'python src/create_dummy_data.py' to generate them.[/yellow]")
+        console.print("[yellow]    Run 'python src/create_dummy_data.py' to generate them.[/yellow]")
         return None, None
 
 def analyze_risk(full_policy, vendor):
@@ -115,9 +115,9 @@ def main():
     # Print Context
     prof = vendor['vendor_profile']
     console.print(f"[dim]Analyzing Profile:[/dim] [cyan]{prof['name']}[/cyan]")
-    console.print(f" • Industry: [bold]{prof['industry'].upper()}[/bold]")
-    console.print(f" • Scale:    [bold]{prof['size'].upper()}[/bold]")
-    console.print(f" • Type:     [bold]{prof['type'].upper()}[/bold]\n")
+    console.print(f" • Industry:    [bold]{prof['industry'].upper()}[/bold]")
+    console.print(f" • Scale:       [bold]{prof['size'].upper()}[/bold]")
+    console.print(f" • Type:        [bold]{prof['type'].upper()}[/bold]\n")
 
     with console.status("[bold yellow]⚙️  Applying Policy Overlays...[/bold yellow]", spinner="dots"):
         import time; time.sleep(1)
