@@ -57,21 +57,21 @@ python src/analyze_vendor.py
 
 ```mermaid
 graph TD
-    A[Vendor Response Text] --> B{Load Active Policy}
-    B -->|Config: NIST| C[Load NIST 800-53 Controls]
-    B -->|Config: CJIS| D[Load CJIS Policy Controls]
+    A["Vendor Response Text"] --> B{"Load Active Policy"}
+    B -->|Config: NIST| C["Load NIST 800-53 Controls"]
+    B -->|Config: CJIS| D["Load CJIS Policy Controls"]
     
-    C & D --> E[Compiled Policy Object]
+    C & D --> E["Compiled Policy Object"]
     
-    E --> F[AI Scoring Engine]
+    E --> F["AI Scoring Engine"]
     A --> F
     
-    F --> G{Analysis Logic}
-    G -->|Critical Flag| H[Score = 0 (Reject)]
-    G -->|Control Failure| I[Deduct Weighted Points]
-    G -->|Pass| J[Maintain Score]
+    F --> G{"Analysis Logic"}
+    G -->|Critical Flag| H["Score = 0 (Reject)"]
+    G -->|Control Failure| I["Deduct Weighted Points"]
+    G -->|Pass| J["Maintain Score"]
     
-    H & I & J --> K[Final Risk Score & Report]
+    H & I & J --> K["Final Risk Score & Report"]
 ```
 
 ---
