@@ -1,11 +1,20 @@
 # --- CONFIGURATION ---
+scoring_matrix:
+  starting_score: 100
+  thresholds:
+    low_risk: {min: 90, label: "✅ LOW RISK (Auto-Approve)"}
+    medium_risk: {min: 70, label: "⚠️ MEDIUM RISK (Manual Review)"}
+    high_risk: {min: 0, label: "🚫 HIGH RISK (Reject)"}
+  
+  # If a Critical Flag is triggered, override score to 0 immediately
+  critical_override: true
+
 # Select which standards to enforce for this assessment.
 active_frameworks:
-  - "nist_800_53_r5"  # High Assurance
-  - "cjis_policy"     # Law Enforcement Data
-  # - "cis_level_2"   # Defense in Depth (Commented out)
-  # - "iso_27001"     # General Commercial
-
+  - "nist_800_53_r5"
+  - "cjis_policy"
+  # - "iso_27001"
+  
 # --- FRAMEWORK DEFINITIONS ---
 frameworks:
 
