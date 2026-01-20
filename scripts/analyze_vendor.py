@@ -4,16 +4,12 @@ import json
 import os
 # from openai import OpenAI  # Uncomment for real usage
 
-# Setup (Uncomment for real usage)
-# client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 # --- CONFIG ---
 POLICY_PATH = 'policies/vendor_standards.yaml'
 
-def load_dynamic_policy(yaml_path):
+def load_policy_and_config(yaml_path):
     """
-    Loads the 'active' frameworks defined in the YAML configuration.
-    This allows a user to toggle between NIST, CJIS, ISO, etc.
+    Loads both the 'active' frameworks and the scoring configuration.
     """
     if not os.path.exists(yaml_path):
         raise FileNotFoundError(f"Policy file not found: {yaml_path}")
@@ -21,110 +17,129 @@ def load_dynamic_policy(yaml_path):
     with open(yaml_path, 'r') as f:
         full_config = yaml.safe_load(f)
     
+    # 1. Extract Scoring Config
+    scoring_config = full_config.get('scoring_matrix', {})
+    
+    # 2. Extract Active Controls
     active_keys = full_config.get('active_frameworks', [])
     compiled_policy = {}
     
     print(f"⚙️  Loading Active Frameworks: {active_keys}")
-    
     for key in active_keys:
         if key in full_config.get('frameworks', {}):
-            # Merge the controls from this framework into our main policy object
-            framework_controls = full_config['frameworks'][key]
-            compiled_policy.update(framework_controls)
+            compiled_policy.update(full_config['frameworks'][key])
             
-    return compiled_policy
+    return compiled_policy, scoring_config
 
 def generate_system_prompt(policy_dict):
     """
-    Dynamically builds the AI instructions based on the Active Policy.
-    This is 'Policy-as-Code' in action.
+    Dynamically builds the AI instructions.
     """
-    prompt = "You are a GRC Risk Analyst. Analyze the vendor response against these specific security controls:\n\n"
-    
+    prompt = "You are a GRC Risk Analyst. Analyze the vendor response against these controls:\n\n"
     for control_id, criteria in policy_dict.items():
-        prompt += f"CONTROL: {criteria.get('domain', control_id)}\n"
-        prompt += f" - Requirement: {criteria.get('description', 'No description provided.')}\n"
-        
+        prompt += f"CONTROL: {criteria.get('domain', control_id)} (Weight: {criteria.get('weight', 0)})\n"
+        prompt += f" - Requirement: {criteria.get('description')}\n"
         if 'acceptable_answers' in criteria:
-            prompt += f" - Acceptable Terms: {', '.join(criteria['acceptable_answers'])}\n"
-            
+            prompt += f" - Acceptable: {', '.join(criteria['acceptable_answers'])}\n"
         if 'forbidden_terms' in criteria:
-            prompt += f" - FORBIDDEN TERMS (Trigger Failure): {', '.join(criteria['forbidden_terms'])}\n"
-            
-        if 'critical_flag' in criteria:
-            prompt += f" - CRITICAL FAIL CONDITION: {criteria['critical_flag']}\n"
-        
+            prompt += f" - FAIL IF FOUND: {', '.join(criteria['forbidden_terms'])}\n"
         prompt += "\n"
-        
-    prompt += "Output Format: Return a JSON list of objects with keys: 'control_id', 'status' (PASS/FAIL), 'severity', 'finding', 'recommendation'."
+    prompt += "Output Format: JSON list [{control_id, status (PASS/FAIL), finding, recommendation}]"
     return prompt
+
+def calculate_final_score(risks, policy, config):
+    """
+    Calculates the score based on the YAML weights and thresholds.
+    """
+    score = config.get('starting_score', 100)
+    critical_hit = False
+
+    for risk in risks:
+        if risk['status'] == 'FAIL':
+            # Find the weight of this specific control
+            control_id = risk['control_id']
+            weight = policy.get(control_id, {}).get('weight', 0)
+            score -= weight
+            
+            # Check for Critical Overrides (Immediate Fail)
+            if risk.get('severity') == 'CRITICAL' and config.get('critical_override'):
+                critical_hit = True
+
+    # Floor at 0
+    score = max(0, score)
+    if critical_hit: score = 0
+
+    # Determine Label (High/Med/Low)
+    label = "Unknown"
+    thresholds = config.get('thresholds', {})
+    
+    if score >= thresholds['low_risk']['min']:
+        label = thresholds['low_risk']['label']
+    elif score >= thresholds['medium_risk']['min']:
+        label = thresholds['medium_risk']['label']
+    else:
+        label = thresholds['high_risk']['label']
+        
+    return score, label
 
 def analyze_vendor_response(vendor_text, policy):
     print(f"🤖 AI Engine: Analyzing against {len(policy)} active controls...")
     
-    system_prompt = generate_system_prompt(policy)
-    
-    # --- MOCK LLM RESPONSE FOR DEMO ---
-    # In production, you would pass 'system_prompt' and 'vendor_text' to GPT-4.
-    # Here we simulate what GPT-4 would return based on the dummy input.
-    
+    # --- MOCK AI SIMULATION ---
     detected_risks = []
 
-    # Simulation Logic (Mocking the AI's reasoning based on input)
-    # 1. Check Encryption (NIST/CIS)
-    if "DES" in vendor_text or "AES-256" not in vendor_text:
+    # Simulating Failures based on input text
+    if "DES" in vendor_text:
         detected_risks.append({
             "control_id": "encryption",
             "status": "FAIL",
             "severity": "HIGH",
-            "finding": "Vendor uses legacy encryption (DES) or failed to specify AES-256.",
-            "recommendation": "Require upgrade to AES-256 per policy."
+            "finding": "Vendor uses legacy encryption (DES).",
+            "recommendation": "Require AES-256."
         })
         
-    # 2. Check MFA (CJIS/NIST)
-    if "contractors" in vendor_text and "strong passwords" in vendor_text:
+    if "contractors" in vendor_text and "passwords" in vendor_text:
         detected_risks.append({
-            "control_id": "ac_control",
+            "control_id": "ia_control",
             "status": "FAIL",
             "severity": "CRITICAL",
-            "finding": "Contractors are using passwords only, bypassing MFA requirements.",
-            "recommendation": "Enforce MFA for all contractor accounts immediately."
+            "finding": "MFA not enforced for contractors.",
+            "recommendation": "Enforce MFA immediately."
         })
 
     return detected_risks
 
 if __name__ == "__main__":
-    print("--- 🤖 AI TPRM Analyzer v2.1 (Dynamic Standards) ---")
+    print("--- 🤖 AI TPRM Analyzer v3.0 (Scoring Engine) ---")
     
-    # 1. Load the Policy (YAML)
     try:
-        policy = load_dynamic_policy(POLICY_PATH)
+        policy, config = load_policy_and_config(POLICY_PATH)
     except FileNotFoundError:
-        print(f"❌ Error: '{POLICY_PATH}' not found. Please ensure the file exists.")
+        print(f"❌ Error: '{POLICY_PATH}' not found.")
         exit(1)
 
-    if not policy:
-        print("⚠️  Warning: No active frameworks found in policy file.")
-        exit(1)
-
-    # 2. Simulate Vendor Input
+    # Dummy Input
     dummy_vendor_response = """
-    Security: We use encryption for all data, primarily DES for legacy support. 
-    Access: Employees use MFA, but contractors use strong passwords to access the portal.
-    Data: We keep customer data as long as the account is active.
+    Security: We use DES encryption for legacy support. 
+    Access: Employees use MFA, contractors use passwords.
     """
-    print(f"\n📝 Vendor Response Snippet:\n{dummy_vendor_response.strip()}\n")
+    print(f"\n📝 Vendor Response:\n{dummy_vendor_response.strip()}\n")
 
-    # 3. Analyze
+    # Analyze
     risks = analyze_vendor_response(dummy_vendor_response, policy)
+    score, label = calculate_final_score(risks, policy, config)
 
-    # 4. Report
+    # Report
     print("\n[🔍 AI Analysis Result]")
     if risks:
         for risk in risks:
-            color = "🔴" if risk['severity'] == "CRITICAL" else "🟠"
-            print(f"{color} [{risk['severity']}] Control: {risk['control_id']}")
-            print(f"   └── Finding: {risk['finding']}")
+            print(f"🔴 [FAIL] {risk['finding']} (-{policy[risk['control_id']]['weight']} pts)")
             print(f"   └── Fix: {risk['recommendation']}")
     else:
-        print("✅ No risks detected based on current active standards.")
+        print("✅ No risks detected.")
+
+    # Final Grading
+    print("\n" + "="*30)
+    print(f"📊 FINAL SCORE: {score}/100")
+    print(f"🏷️  STATUS: {label}")
+    print("="*30)
