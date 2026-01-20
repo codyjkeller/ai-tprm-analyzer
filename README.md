@@ -1,31 +1,29 @@
-### 📋 Instructions
-
 # ⚖️ AI TPRM Risk Engine (Context-Aware)
 
 ### Dynamic Vendor Risk Assessment & Compliance Auditing
 
 [![Status](https://img.shields.io/badge/Status-Active-success.svg)]()
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Logic](https://img.shields.io/badge/Logic-Dynamic_Overlays-purple.svg)]()
+[![Logic](https://img.shields.io/badge/Logic-Dynamic_Standards-purple.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-lightgrey)]()
 
 ---
 
 ### 📖 Overview
-Legacy TPRM tools treat every vendor the same. This engine uses **"Context-Aware Logic"** to dynamically generate risk frameworks based on the vendor's profile.
+Legacy TPRM tools use static spreadsheets. This engine uses **"Context-Aware Logic"** and **"Policy-as-Code"** to dynamically generate risk frameworks based on the specific standards required for each vendor (NIST, CJIS, ISO, etc.).
 
-Instead of a static checklist, the system applies **Policy Overlays**:
-* **Healthcare Vendor?** → Automatically enforces **HIPAA BAA** & Data Retention checks.
-* **Public Company?** → Automatically enforces **SOX ITGC** (Segregation of Duties).
-* **Enterprise Scale?** → Automatically enforces stricter **SLA & Insurance** limits.
+Instead of checking generic boxes, the system acts as an **Automated GRC Analyst**:
+* **High Assurance Vendor?** → Dynamically enforces **NIST 800-53 r5** controls.
+* **Law Enforcement Data?** → Automatically enforces **CJIS Policy v5.9** (FIPS encryption).
+* **AI Scoring:** Uses LLM logic to detect vague answers, critical gaps (MFA, Encryption), and calculates a precise risk score (0-100).
 
-![Risk Assessment Demo](demo.png)
+![Risk Assessment CLI](https://via.placeholder.com/800x400?text=CLI+Screenshot+Coming+Soon)
 
 ### ⚡ Feature Highlights
-* **Dynamic Policy Overlays:** Merges a "Universal Baseline" with industry-specific rule sets (YAML-based).
-* **Weighted Scoring:** Calculates a precise risk score (0-100) based on control criticality.
-* **Auto-Remediation:** Automatically maps failures to specific remediation actions (e.g., "Implement SSO").
-* **Audit Trail:** Exports a CSV report for compliance evidence.
+* **Dynamic Policy Library:** Toggle active frameworks (NIST, CJIS, ISO, CIS) via a simple YAML config.
+* **Weighted Scoring Engine:** Calculates a precise risk score (0-100) based on control weights and critical failures.
+* **AI-Driven Analysis:** Detects vague or non-compliant answers (e.g., "We use proprietary encryption" instead of "AES-256").
+* **Auto-Remediation:** Maps failures to specific fix actions (e.g., "Implement SSO/MFA immediately").
 
 ---
 
@@ -36,23 +34,21 @@ Instead of a static checklist, the system applies **Policy Overlays**:
 git clone [https://github.com/codyjkeller/ai-tprm-analyzer.git](https://github.com/codyjkeller/ai-tprm-analyzer.git)
 cd ai-tprm-analyzer
 pip install -r requirements.txt
-
 ```
 
-#### 2. Generate Sample Data
-
-Run the included script to create a dummy vendor profile:
-
-```bash
-python src/create_dummy_data.py
-
+#### 2. Configure Your Standards
+Edit `policies/vendor_standards.yaml` to select which frameworks to enforce:
+```yaml
+active_frameworks:
+  - "nist_800_53_r5"  # High Assurance
+  - "cjis_policy"     # Law Enforcement
+  # - "iso_27001"     # Commercial (Commented out)
 ```
 
-#### 3. Run the Assessment
-
+#### 3. Run the AI Analyst
+Simulate an AI assessment against your active policy:
 ```bash
-python src/analyzer.py
-
+python src/analyze_vendor.py
 ```
 
 ---
@@ -61,22 +57,21 @@ python src/analyzer.py
 
 ```mermaid
 graph TD
-    A[Vendor Profile] --> B{Determine Context}
-    B -->|Healthcare?| C[Load HIPAA Overlay]
-    B -->|Public Co?| D[Load SOX Overlay]
-    B -->|Baseline| E[Load Standard Policy]
+    A[Vendor Response Text] --> B{Load Active Policy}
+    B -->|Config: NIST| C[Load NIST 800-53 Controls]
+    B -->|Config: CJIS| D[Load CJIS Policy Controls]
     
-    C & D & E --> F[Master Policy Object]
+    C & D --> E[Compiled Policy Object]
     
-    G[Vendor Answers] --> H(Risk Engine)
-    F --> H
+    E --> F[AI Scoring Engine]
+    A --> F
     
-    H --> I{Analysis Logic}
-    I -->|Gap Found| J[Generate Risk Finding + Remediation]
-    I -->|Compliance Met| K[Pass]
+    F --> G{Analysis Logic}
+    G -->|Critical Flag| H[Score = 0 (Reject)]
+    G -->|Control Failure| I[Deduct Weighted Points]
+    G -->|Pass| J[Maintain Score]
     
-    J & K --> L[Final CLI Report & CSV]
-
+    H & I & J --> K[Final Risk Score & Report]
 ```
 
 ---
@@ -86,14 +81,12 @@ graph TD
 ```text
 .
 ├── src/
-│   ├── analyzer.py           # Core Logic: Policy Merging & Risk Grading
-│   └── create_dummy_data.py  # Generates "Context-Rich" test data
-├── data/
-│   ├── policies.yaml         # The "Brain": Baseline rules + Context Overlays
-│   └── vendor_response.json  # The "Evidence": Vendor answers & profile data
+│   ├── analyze_vendor.py     # Main Engine: Dynamic Policy Loading & AI Scoring
+│   └── analyzer.py           # Legacy Script: Context-Aware Heuristics
+├── policies/
+│   └── vendor_standards.yaml # The "Brain": Library of NIST/CJIS/ISO Controls & Scoring Logic
+├── config/
+│   └── risk_matrix.yaml      # (Deprecated) Old scoring logic
 ├── requirements.txt          # Dependencies (Rich, PyYAML, Pandas)
 └── README.md                 # Documentation
-
-```
-
 ```
