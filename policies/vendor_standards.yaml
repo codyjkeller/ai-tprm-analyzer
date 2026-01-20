@@ -1,20 +1,87 @@
-security_policy:
-  mfa_enforcement:
-    required: true
-    weight: 20
-    acceptable_answers: ["Yes", "Enforced", "True"]
+# --- CONFIGURATION ---
+# Select which standards to enforce for this assessment.
+active_frameworks:
+  - "nist_800_53_r5"  # High Assurance
+  - "cjis_policy"     # Law Enforcement Data
+  # - "cis_level_2"   # Defense in Depth (Commented out)
+  # - "iso_27001"     # General Commercial
+
+# --- FRAMEWORK DEFINITIONS ---
+frameworks:
+
+  # 1. NIST SP 800-53 Revision 5 (Federal/High Assurance)
+  nist_800_53_r5:
+    ac_control:
+      id: "AC-2"
+      domain: "Access Control"
+      required: true
+      weight: 20
+      description: "Automated system account management."
+      acceptable_answers: ["Automated provisioning", "IdP Integration"]
+    
+    ia_control:
+      id: "IA-2(1)"
+      domain: "Identification & Authentication"
+      required: true
+      weight: 25
+      description: "Multi-Factor Authentication for non-privileged and privileged accounts."
+      acceptable_answers: ["MFA Enforced", "PIV/CAC"]
+      critical_flag: "MFA not enforced"
+
+  # 2. CJIS Security Policy v5.9 (Law Enforcement)
+  cjis_policy:
+    advanced_auth:
+      id: "5.6.2.2"
+      domain: "Advanced Authentication"
+      required: true
+      weight: 30
+      description: "MFA required for all access to CJI from outside a secure location."
+      acceptable_answers: ["AA Enforced", "MFA"]
+    
+    encryption:
+      id: "5.10.1.2"
+      domain: "Encryption in Transit"
+      required: true
+      weight: 25
+      description: "FIPS 140-2 certified encryption (128-bit min)."
+      acceptable_answers: ["FIPS 140-2", "AES-256"]
+      forbidden_terms: ["Non-FIPS", "DES"]
+
+  # 3. CIS Benchmarks v8 (Cyber Hygiene)
+  cis_level_1:
+    inventory:
+      id: "CIS 1.1"
+      domain: "Asset Inventory"
+      required: true
+      weight: 15
+      description: "Active discovery of enterprise assets."
+      acceptable_answers: ["Automated Asset Discovery", "MDM"]
   
-  data_encryption_rest:
-    required: true
-    weight: 20
-    acceptable_answers: ["AES-256", "AES-128", "Encrypted"]
-  
-  incident_response_plan:
-    required: true
-    weight: 15
-    acceptable_answers: ["Tested Annually", "Yes", "Active"]
-  
-  soc2_compliance:
-    required: false
-    weight: 10
-    acceptable_answers: ["Type 1", "Type 2", "True"]
+  cis_level_2:
+    data_protection:
+      id: "CIS 3.11"
+      domain: "Data Protection"
+      required: true
+      weight: 20
+      description: "Encrypt sensitive data at rest."
+      acceptable_answers: ["Encrypted"]
+
+  # 4. ISO/IEC 27001:2022 (International)
+  iso_27001:
+    annex_a_5:
+      id: "A.5.7"
+      domain: "Threat Intelligence"
+      required: false
+      weight: 10
+      description: "Collection and analysis of threat info."
+      acceptable_answers: ["Threat Feed", "ISAC Member"]
+
+  # 5. COSO (Enterprise Risk - Governance)
+  coso_2013:
+    governance:
+      id: "Principle 1"
+      domain: "Control Environment"
+      required: true
+      weight: 15
+      description: "Demonstrates commitment to integrity and ethical values."
+      acceptable_answers: ["Code of Conduct", "Ethics Policy"]
