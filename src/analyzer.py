@@ -11,145 +11,130 @@ from rich import box
 # Setup
 load_dotenv()
 console = Console()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 EXPORT_FILE = "risk_assessment_report.csv"
 
-# KB: Risk Configuration
-# Define how much each failure hurts the score (Total = 100)
+# --- 1. CONFIGURATION (Should ideally be in a YAML) ---
+# Expanded for modern GRC domains
 RISK_WEIGHTS = {
-    "mfa_failure": 25,        # Critical
-    "sla_failure": 15,        # High
-    "baa_failure": 20,        # High (Legal)
-    "sox_failure": 25         # Critical (Financial)
+    "mfa_failure": 25,        # Access Control
+    "sox_failure": 25,        # Financial Compliance
+    "encrypt_failure": 20,    # Data Protection
+    "residency_failure": 15,  # GDPR/Privacy
+    "sla_failure": 10,        # Availability
+    "subproc_failure": 5      # Supply Chain
 }
 
-# Define the "Fix" for each failure
 REMEDIATION_MAP = {
-    "mfa_failure": "Enforce SSO integration or unconditional MFA for all accounts.",
-    "sla_failure": "Renegotiate contract to ensure SEV1 reporting within 24h.",
-    "baa_failure": "Legal Hold: Do not onboard until HIPAA BAA is signed.",
-    "sox_failure": "Revoke developer access to Prod; Implement CI/CD pipelines."
+    "mfa_failure": "MANDATORY: Enforce SSO/MFA for all users, including contractors.",
+    "sox_failure": "CRITICAL: Revoke developer access to production environment immediately.",
+    "encrypt_failure": "Reject weak cyphers. Require AES-256 for storage and TLS 1.3 for transit.",
+    "residency_failure": "Data Sovereignty Risk: Require EU-only hosting or SCCs (Standard Contractual Clauses).",
+    "sla_failure": "Contractual Amendment: Enforce 24h SEV1 Notification SLA.",
+    "subproc_failure": "Vendor Review: Require list of 4th-party subprocessors for review."
 }
 
 def load_files():
-    try:
-        # We check for these specific files as per your structure
-        if not os.path.exists('data/policies.yaml') or not os.path.exists('data/vendor_response.json'):
-            raise FileNotFoundError
-            
-        with open('data/policies.yaml', 'r') as f:
-            policy = yaml.safe_load(f)
-        with open('data/vendor_response.json', 'r') as f:
-            vendor = json.load(f)
-        return policy, vendor
-    except FileNotFoundError:
-        console.print("[bold red]❌ Error: Missing data files in /data folder.[/bold red]")
-        console.print("[yellow]    Run 'python src/create_dummy_data.py' to generate them.[/yellow]")
-        return None, None
+    # Mocking data loading for the script to run standalone
+    # In production, replace this with actual file I/O
+    return {}, {
+        "vendor_profile": {"name": "MediCloud AI", "industry": "Healthcare", "size": "Enterprise", "type": "Public"},
+        "answers": {
+            "mfa_status": "Internal staff uses Okta. Contractors use shared passwords.",
+            "encryption": "We use DES for legacy compatibility.",
+            "hosting": "Data is replicated globally including APAC regions.",
+            "incident_notification": "We notify within 72 business hours.",
+            "change_management": "Developers have temporary access to prod for debugging."
+        }
+    }
 
-def analyze_risk(full_policy, vendor):
+def analyze_risk(policy, vendor):
     results = []
-    profile = vendor['vendor_profile']
     answers = vendor['answers']
-    
+    profile = vendor['vendor_profile']
     current_score = 100
 
-    # --- 1. BASELINE CHECKS ---
-    # MFA Check
-    if "contractors" in answers['mfa_status'].lower() and "exempt" in answers['mfa_status'].lower():
+    # --- CHECK 1: ACCESS CONTROL (MFA) ---
+    if "shared" in answers['mfa_status'].lower() or "contractors" in answers['mfa_status'].lower():
         current_score -= RISK_WEIGHTS['mfa_failure']
         results.append({
-            "domain": "Baseline: Access", 
-            "status": "FAIL", 
-            "finding": "Contractors exempt from MFA.",
+            "domain": "Identity (IAM)",
+            "status": "FAIL",
+            "severity": "Critical",
+            "finding": "Contractors utilizing shared credentials/no MFA.",
             "fix": REMEDIATION_MAP['mfa_failure']
         })
     else:
-        results.append({"domain": "Baseline: Access", "status": "PASS", "finding": "MFA requirements met.", "fix": "-"})
+        results.append({"domain": "Identity (IAM)", "status": "PASS", "severity": "Low", "finding": "MFA Standard Met", "fix": "-"})
 
-    # SLA Check
-    if "72 hours" in answers['incident_notification']:
-        current_score -= RISK_WEIGHTS['sla_failure']
+    # --- CHECK 2: DATA PROTECTION (Encryption) ---
+    # Senior Logic: Flag deprecated algorithms (DES, MD5, SHA1)
+    if any(x in answers['encryption'] for x in ['DES', 'MD5', 'RC4']):
+        current_score -= RISK_WEIGHTS['encrypt_failure']
         results.append({
-            "domain": "Baseline: Incident Response", 
-            "status": "FAIL", 
-            "finding": "Vendor SLA (72h) exceeds limit (24h).",
-            "fix": REMEDIATION_MAP['sla_failure']
+            "domain": "Data Security",
+            "status": "FAIL",
+            "severity": "High",
+            "finding": f"Weak Encryption Algorithm Detected: {answers['encryption']}",
+            "fix": REMEDIATION_MAP['encrypt_failure']
         })
 
-    # --- 2. DYNAMIC INDUSTRY CHECKS ---
-    if profile['industry'].lower() == 'healthcare':
-        if "BAA" in answers['agreements']:
-            results.append({"domain": "Industry: Healthcare", "status": "PASS", "finding": "BAA Agreement confirmed.", "fix": "-"})
-        else:
-            current_score -= RISK_WEIGHTS['baa_failure']
-            results.append({
-                "domain": "Industry: Healthcare", 
-                "status": "FAIL", 
-                "finding": "Missing HIPAA BAA.",
-                "fix": REMEDIATION_MAP['baa_failure']
-            })
+    # --- CHECK 3: DATA SOVEREIGNTY (GDPR/Locality) ---
+    # If they replicate globally but we are a US/EU company, this is a risk.
+    if "globally" in answers['hosting'].lower() or "apac" in answers['hosting'].lower():
+        current_score -= RISK_WEIGHTS['residency_failure']
+        results.append({
+            "domain": "Privacy (GDPR)",
+            "status": "WARN",
+            "severity": "Medium",
+            "finding": "Uncontrolled Global Replication Detected.",
+            "fix": REMEDIATION_MAP['residency_failure']
+        })
 
-    # --- 3. DYNAMIC STRUCTURE CHECKS ---
-    if profile['type'].lower() == 'public':
-        # Check for SOX ITGCs
-        if "developers have access" in answers['change_management'].lower():
-            current_score -= RISK_WEIGHTS['sox_failure']
-            results.append({
-                "domain": "Public Co: SOX/ITGC", 
-                "status": "FAIL", 
-                "finding": "Segregation of Duties failure (Devs have Prod access).",
-                "fix": REMEDIATION_MAP['sox_failure']
-            })
-        else:
-            results.append({"domain": "Public Co: SOX/ITGC", "status": "PASS", "finding": "Change management adequate.", "fix": "-"})
+    # --- CHECK 4: COMPLIANCE (SOX/ITGC) ---
+    if profile['type'] == 'Public' and "developers" in answers['change_management'].lower():
+        current_score -= RISK_WEIGHTS['sox_failure']
+        results.append({
+            "domain": "Compliance (SOX)",
+            "status": "FAIL",
+            "severity": "Critical",
+            "finding": "Segregation of Duties Conflict (Dev access to Prod).",
+            "fix": REMEDIATION_MAP['sox_failure']
+        })
 
-    return results, current_score
+    return results, max(current_score, 0) # Score floor at 0
 
 def main():
-    console.print(Panel.fit("[bold blue]⚖️  Dynamic TPRM Engine[/bold blue]\nContext-Aware Risk Assessment", border_style="blue"))
+    console.print(Panel.fit("[bold blue]🛡️  Automated TPRM Risk Engine v2.0[/bold blue]\nAnalyst: Cody Keller", border_style="blue"))
 
+    # Load Mock Data
     policy, vendor = load_files()
-    if not policy: return
-
-    # Print Context
+    
     prof = vendor['vendor_profile']
-    console.print(f"[dim]Analyzing Profile:[/dim] [cyan]{prof['name']}[/cyan]")
-    console.print(f" • Industry:    [bold]{prof['industry'].upper()}[/bold]")
-    console.print(f" • Scale:       [bold]{prof['size'].upper()}[/bold]")
-    console.print(f" • Type:        [bold]{prof['type'].upper()}[/bold]\n")
+    console.print(f"[dim]Assessing Vendor:[/dim] [cyan bold]{prof['name']}[/cyan bold] ({prof['industry']})")
 
-    with console.status("[bold yellow]⚙️  Applying Policy Overlays...[/bold yellow]", spinner="dots"):
-        import time; time.sleep(1)
+    with console.status("[bold yellow]⚙️  Running heuristics against Security Policy...[/bold yellow]", spinner="dots"):
+        import time; time.sleep(1.2) # UX Pause
         findings, score = analyze_risk(policy, vendor)
 
     # Output Table
-    table = Table(title="Context-Aware Risk Report & Remediation", box=box.ROUNDED)
-    table.add_column("Policy Domain", style="cyan")
-    table.add_column("Status", style="bold")
-    table.add_column("Audit Finding", style="white")
-    table.add_column("Recommended Action", style="yellow")
+    table = Table(title="Risk Findings Report", box=box.SIMPLE_HEAD)
+    table.add_column("Domain", style="cyan")
+    table.add_column("Severity", style="magenta")
+    table.add_column("Finding", style="white")
+    table.add_column("Remediation Plan", style="yellow")
 
     for f in findings:
-        status_style = "green" if f['status'] == "PASS" else "red"
-        table.add_row(
-            f['domain'], 
-            f"[{status_style}]{f['status']}[/{status_style}]", 
-            f['finding'],
-            f['fix']
-        )
+        if f['status'] != "PASS":
+            table.add_row(f['domain'], f['severity'], f['finding'], f['fix'])
 
     console.print(table)
     
-    # Final Score Visualization
-    score_color = "green" if score >= 80 else "yellow" if score >= 60 else "red"
-    console.print(f"\n📊 Risk Score: [bold {score_color}]{score}/100[/bold {score_color}]")
+    # Score Card
+    color = "green" if score >= 80 else "yellow" if score >= 60 else "red"
+    console.print(Panel(f"[bold {color}]Risk Score: {score}/100[/bold {color}]", title="Final Rating", expand=False))
 
-    # CSV Export
-    df = pd.DataFrame(findings)
-    df['Overall_Score'] = score
-    df.to_csv(EXPORT_FILE, index=False)
-    console.print(f"💾 Report saved to: [underline]{EXPORT_FILE}[/underline]")
+    if score < 70:
+        console.print("[bold red]🚫 RECOMMENDATION: DO NOT ONBOARD UNTIL REMEDIATION COMPLETE[/bold red]")
 
 if __name__ == "__main__":
     main()
