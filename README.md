@@ -19,7 +19,7 @@ Instead of checking generic boxes, the system acts as an **Automated GRC Analyst
 
 ![Risk Assessment CLI](https://via.placeholder.com/800x400?text=CLI+Screenshot+Coming+Soon)
 
-### ⚡ Feature Highlights
+###  Feature Highlights
 * **Dynamic Policy Library:** Toggle active frameworks (NIST, CJIS, ISO, CIS) via a simple YAML config.
 * **Weighted Scoring Engine:** Calculates a precise risk score (0-100) based on control weights and critical failures.
 * **AI-Driven Analysis:** Detects vague or non-compliant answers (e.g., "We use proprietary encryption" instead of "AES-256").
