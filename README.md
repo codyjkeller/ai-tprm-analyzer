@@ -9,7 +9,7 @@
 
 ---
 
-### 📖 Overview
+###  Overview
 Legacy TPRM tools use static spreadsheets. This engine uses **"Context-Aware Logic"** and **"Policy-as-Code"** to dynamically generate risk frameworks based on the specific standards required for each vendor (NIST, CJIS, ISO, etc.).
 
 Instead of checking generic boxes, the system acts as an **Automated GRC Analyst**:
