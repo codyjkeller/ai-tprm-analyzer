@@ -1,4 +1,4 @@
-# ⚖️ AI TPRM Risk Engine (Context-Aware)
+# AI TPRM Risk Engine (Context-Aware)
 
 ### Dynamic Vendor Risk Assessment & Compliance Auditing
 
@@ -27,7 +27,7 @@ Instead of checking generic boxes, the system acts as an **Automated GRC Analyst
 
 ---
 
-### 🛠️ Quick Start
+###  Quick Start
 
 #### 1. Clone the Repository
 ```bash
@@ -53,7 +53,7 @@ python src/analyze_vendor.py
 
 ---
 
-### 🧠 Architecture Logic
+###  Architecture Logic
 
 ```mermaid
 graph TD
@@ -76,7 +76,7 @@ graph TD
 
 ---
 
-### 📂 File Structure
+###  File Structure
 
 ```text
 .
