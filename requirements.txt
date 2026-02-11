@@ -1,7 +1,13 @@
-pyyaml
-rich
-openai
-python-dotenv
-pandas
-colorama
-tabulate
+# Core Logic
+pydantic>=2.5.0      # Enforces V2 (Rust engine) for speed/validation
+openai>=1.10.0       # Enforces new Client interface (Breaking change protection)
+pandas>=2.0.0        # Enforces modern DataFrame handling
+pyyaml>=6.0.0        # Security fixes for YAML loading
+
+# CLI / UI
+rich>=13.0.0         # Terminal formatting
+colorama>=0.4.6      # Windows terminal color support
+tabulate>=0.9.0      # Table rendering
+
+# Utilities
+python-dotenv>=1.0.0 # Environment variable management
