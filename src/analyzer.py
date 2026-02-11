@@ -1,7 +1,9 @@
 import os
 import yaml
 import json
-import pandas as pd
+import time
+import logging
+from typing import Dict, Any, Tuple, List
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.table import Table
@@ -11,10 +13,12 @@ from rich import box
 # Setup
 load_dotenv()
 console = Console()
-EXPORT_FILE = "risk_assessment_report.csv"
 
-# --- 1. CONFIGURATION (Should ideally be in a YAML) ---
-# Expanded for modern GRC domains
+# Configure Logging
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# --- CONFIGURATION CONSTANTS ---
 RISK_WEIGHTS = {
     "mfa_failure": 25,        # Access Control
     "sox_failure": 25,        # Financial Compliance
@@ -33,11 +37,18 @@ REMEDIATION_MAP = {
     "subproc_failure": "Vendor Review: Require list of 4th-party subprocessors for review."
 }
 
-def load_files():
-    # Mocking data loading for the script to run standalone
-    # In production, replace this with actual file I/O
-    return {}, {
-        "vendor_profile": {"name": "MediCloud AI", "industry": "Healthcare", "size": "Enterprise", "type": "Public"},
+def load_files() -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """
+    Mock data loader. In production, replace with file I/O.
+    """
+    policy = {}
+    vendor_response = {
+        "vendor_profile": {
+            "name": "MediCloud AI",
+            "industry": "Healthcare",
+            "size": "Enterprise",
+            "type": "Public"
+        },
         "answers": {
             "mfa_status": "Internal staff uses Okta. Contractors use shared passwords.",
             "encryption": "We use DES for legacy compatibility.",
@@ -46,15 +57,20 @@ def load_files():
             "change_management": "Developers have temporary access to prod for debugging."
         }
     }
+    return policy, vendor_response
 
-def analyze_risk(policy, vendor):
+def analyze_risk(policy: Dict[str, Any], vendor: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], int]:
+    """
+    Analyzes vendor answers against risk heuristics.
+    """
     results = []
-    answers = vendor['answers']
-    profile = vendor['vendor_profile']
+    answers = vendor.get('answers', {})
+    profile = vendor.get('vendor_profile', {})
     current_score = 100
 
     # --- CHECK 1: ACCESS CONTROL (MFA) ---
-    if "shared" in answers['mfa_status'].lower() or "contractors" in answers['mfa_status'].lower():
+    mfa_status = answers.get('mfa_status', '').lower()
+    if "shared" in mfa_status or "contractors" in mfa_status:
         current_score -= RISK_WEIGHTS['mfa_failure']
         results.append({
             "domain": "Identity (IAM)",
@@ -67,20 +83,20 @@ def analyze_risk(policy, vendor):
         results.append({"domain": "Identity (IAM)", "status": "PASS", "severity": "Low", "finding": "MFA Standard Met", "fix": "-"})
 
     # --- CHECK 2: DATA PROTECTION (Encryption) ---
-    # Senior Logic: Flag deprecated algorithms (DES, MD5, SHA1)
-    if any(x in answers['encryption'] for x in ['DES', 'MD5', 'RC4']):
+    encryption_ans = answers.get('encryption', '')
+    if any(x in encryption_ans for x in ['DES', 'MD5', 'RC4']):
         current_score -= RISK_WEIGHTS['encrypt_failure']
         results.append({
             "domain": "Data Security",
             "status": "FAIL",
             "severity": "High",
-            "finding": f"Weak Encryption Algorithm Detected: {answers['encryption']}",
+            "finding": f"Weak Encryption Algorithm Detected: {encryption_ans}",
             "fix": REMEDIATION_MAP['encrypt_failure']
         })
 
     # --- CHECK 3: DATA SOVEREIGNTY (GDPR/Locality) ---
-    # If they replicate globally but we are a US/EU company, this is a risk.
-    if "globally" in answers['hosting'].lower() or "apac" in answers['hosting'].lower():
+    hosting_ans = answers.get('hosting', '').lower()
+    if "globally" in hosting_ans or "apac" in hosting_ans:
         current_score -= RISK_WEIGHTS['residency_failure']
         results.append({
             "domain": "Privacy (GDPR)",
@@ -91,7 +107,8 @@ def analyze_risk(policy, vendor):
         })
 
     # --- CHECK 4: COMPLIANCE (SOX/ITGC) ---
-    if profile['type'] == 'Public' and "developers" in answers['change_management'].lower():
+    change_mgmt = answers.get('change_management', '').lower()
+    if profile.get('type') == 'Public' and "developers" in change_mgmt:
         current_score -= RISK_WEIGHTS['sox_failure']
         results.append({
             "domain": "Compliance (SOX)",
@@ -101,19 +118,19 @@ def analyze_risk(policy, vendor):
             "fix": REMEDIATION_MAP['sox_failure']
         })
 
-    return results, max(current_score, 0) # Score floor at 0
+    return results, max(current_score, 0)
 
 def main():
-    console.print(Panel.fit("[bold blue]🛡️  Automated TPRM Risk Engine v2.0[/bold blue]\nAnalyst: Cody Keller", border_style="blue"))
+    console.print(Panel.fit("[bold blue]Automated TPRM Risk Engine v2.0[/bold blue]\nAnalyst: System", border_style="blue"))
 
     # Load Mock Data
     policy, vendor = load_files()
     
-    prof = vendor['vendor_profile']
-    console.print(f"[dim]Assessing Vendor:[/dim] [cyan bold]{prof['name']}[/cyan bold] ({prof['industry']})")
+    prof = vendor.get('vendor_profile', {})
+    console.print(f"[dim]Assessing Vendor:[/dim] [cyan bold]{prof.get('name', 'Unknown')}[/cyan bold] ({prof.get('industry', 'Unknown')})")
 
-    with console.status("[bold yellow]⚙️  Running heuristics against Security Policy...[/bold yellow]", spinner="dots"):
-        import time; time.sleep(1.2) # UX Pause
+    with console.status("[bold yellow]Running heuristics against Security Policy...[/bold yellow]", spinner="dots"):
+        time.sleep(1.0) # UX Pause
         findings, score = analyze_risk(policy, vendor)
 
     # Output Table
@@ -134,7 +151,7 @@ def main():
     console.print(Panel(f"[bold {color}]Risk Score: {score}/100[/bold {color}]", title="Final Rating", expand=False))
 
     if score < 70:
-        console.print("[bold red]🚫 RECOMMENDATION: DO NOT ONBOARD UNTIL REMEDIATION COMPLETE[/bold red]")
+        console.print("[bold red]RECOMMENDATION: DO NOT ONBOARD UNTIL REMEDIATION COMPLETE[/bold red]")
 
 if __name__ == "__main__":
     main()
