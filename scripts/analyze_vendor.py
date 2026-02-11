@@ -2,21 +2,34 @@ import yaml
 import argparse
 import json
 import os
-# from openai import OpenAI  # Uncomment for real usage
+import logging
+from typing import Dict, List, Tuple, Any
+
+# Configure Enterprise Logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - [TPRM_ENGINE] - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # --- CONFIG ---
 POLICY_PATH = 'policies/vendor_standards.yaml'
 
-def load_policy_and_config(yaml_path):
+def load_policy_and_config(yaml_path: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """
     Loads both the 'active' frameworks and the scoring configuration.
     """
     if not os.path.exists(yaml_path):
+        logger.error(f"Policy file not found: {yaml_path}")
         raise FileNotFoundError(f"Policy file not found: {yaml_path}")
 
-    with open(yaml_path, 'r') as f:
-        full_config = yaml.safe_load(f)
-    
+    try:
+        with open(yaml_path, 'r') as f:
+            full_config = yaml.safe_load(f)
+    except yaml.YAMLError as e:
+        logger.error(f"Error parsing YAML policy: {e}")
+        raise
+
     # 1. Extract Scoring Config
     scoring_config = full_config.get('scoring_matrix', {})
     
@@ -24,30 +37,42 @@ def load_policy_and_config(yaml_path):
     active_keys = full_config.get('active_frameworks', [])
     compiled_policy = {}
     
-    print(f"⚙️  Loading Active Frameworks: {active_keys}")
+    logger.info(f"Loading Active Frameworks: {active_keys}")
     for key in active_keys:
-        if key in full_config.get('frameworks', {}):
-            compiled_policy.update(full_config['frameworks'][key])
+        frameworks = full_config.get('frameworks', {})
+        if key in frameworks:
+            compiled_policy.update(frameworks[key])
+        else:
+            logger.warning(f"Framework '{key}' defined in active_frameworks but not found in definitions.")
             
     return compiled_policy, scoring_config
 
-def generate_system_prompt(policy_dict):
+def generate_system_prompt(policy_dict: Dict[str, Any]) -> str:
     """
-    Dynamically builds the AI instructions.
+    Dynamically builds the AI instructions based on loaded policies.
     """
     prompt = "You are a GRC Risk Analyst. Analyze the vendor response against these controls:\n\n"
     for control_id, criteria in policy_dict.items():
-        prompt += f"CONTROL: {criteria.get('domain', control_id)} (Weight: {criteria.get('weight', 0)})\n"
-        prompt += f" - Requirement: {criteria.get('description')}\n"
+        domain = criteria.get('domain', control_id)
+        weight = criteria.get('weight', 0)
+        desc = criteria.get('description', 'No description provided.')
+        
+        prompt += f"CONTROL: {domain} (Weight: {weight})\n"
+        prompt += f" - Requirement: {desc}\n"
+        
         if 'acceptable_answers' in criteria:
-            prompt += f" - Acceptable: {', '.join(criteria['acceptable_answers'])}\n"
+            acceptable = ', '.join(criteria['acceptable_answers'])
+            prompt += f" - Acceptable: {acceptable}\n"
+        
         if 'forbidden_terms' in criteria:
-            prompt += f" - FAIL IF FOUND: {', '.join(criteria['forbidden_terms'])}\n"
+            forbidden = ', '.join(criteria['forbidden_terms'])
+            prompt += f" - FAIL IF FOUND: {forbidden}\n"
         prompt += "\n"
+        
     prompt += "Output Format: JSON list [{control_id, status (PASS/FAIL), finding, recommendation}]"
     return prompt
 
-def calculate_final_score(risks, policy, config):
+def calculate_final_score(risks: List[Dict[str, Any]], policy: Dict[str, Any], config: Dict[str, Any]) -> Tuple[int, str]:
     """
     Calculates the score based on the YAML weights and thresholds.
     """
@@ -57,35 +82,43 @@ def calculate_final_score(risks, policy, config):
     for risk in risks:
         if risk['status'] == 'FAIL':
             # Find the weight of this specific control
-            control_id = risk['control_id']
-            weight = policy.get(control_id, {}).get('weight', 0)
-            score -= weight
+            control_id = risk.get('control_id')
+            if control_id and control_id in policy:
+                weight = policy[control_id].get('weight', 0)
+                score -= weight
             
             # Check for Critical Overrides (Immediate Fail)
             if risk.get('severity') == 'CRITICAL' and config.get('critical_override'):
                 critical_hit = True
+                logger.warning(f"Critical failure detected: {risk.get('finding')}")
 
     # Floor at 0
     score = max(0, score)
-    if critical_hit: score = 0
+    if critical_hit:
+        score = 0
 
     # Determine Label (High/Med/Low)
     label = "Unknown"
     thresholds = config.get('thresholds', {})
     
-    if score >= thresholds['low_risk']['min']:
-        label = thresholds['low_risk']['label']
-    elif score >= thresholds['medium_risk']['min']:
-        label = thresholds['medium_risk']['label']
+    # Safely get threshold values with defaults
+    low_min = thresholds.get('low_risk', {}).get('min', 90)
+    med_min = thresholds.get('medium_risk', {}).get('min', 70)
+    
+    if score >= low_min:
+        label = thresholds.get('low_risk', {}).get('label', 'LOW RISK')
+    elif score >= med_min:
+        label = thresholds.get('medium_risk', {}).get('label', 'MEDIUM RISK')
     else:
-        label = thresholds['high_risk']['label']
+        label = thresholds.get('high_risk', {}).get('label', 'HIGH RISK')
         
     return score, label
 
-def analyze_vendor_response(vendor_text, policy):
-    print(f"🤖 AI Engine: Analyzing against {len(policy)} active controls...")
+def analyze_vendor_response(vendor_text: str, policy: Dict[str, Any]) -> List[Dict[str, Any]]:
+    logger.info(f"AI Engine: Analyzing against {len(policy)} active controls...")
     
     # --- MOCK AI SIMULATION ---
+    # In a real environment, this would call the OpenAI/Azure API
     detected_risks = []
 
     # Simulating Failures based on input text
@@ -110,36 +143,40 @@ def analyze_vendor_response(vendor_text, policy):
     return detected_risks
 
 if __name__ == "__main__":
-    print("--- 🤖 AI TPRM Analyzer v3.0 (Scoring Engine) ---")
+    print("\n--- AI TPRM Analyzer v3.0 (Scoring Engine) ---\n")
     
     try:
         policy, config = load_policy_and_config(POLICY_PATH)
     except FileNotFoundError:
-        print(f"❌ Error: '{POLICY_PATH}' not found.")
+        logger.critical(f"Execution halted: Policy file '{POLICY_PATH}' missing.")
+        exit(1)
+    except Exception as e:
+        logger.critical(f"Execution halted: {e}")
         exit(1)
 
-    # Dummy Input
+    # Dummy Input for Demonstration
     dummy_vendor_response = """
     Security: We use DES encryption for legacy support. 
     Access: Employees use MFA, contractors use passwords.
     """
-    print(f"\n📝 Vendor Response:\n{dummy_vendor_response.strip()}\n")
+    print(f"Vendor Response Summary:\n{dummy_vendor_response.strip()}\n")
 
     # Analyze
     risks = analyze_vendor_response(dummy_vendor_response, policy)
     score, label = calculate_final_score(risks, policy, config)
 
-    # Report
-    print("\n[🔍 AI Analysis Result]")
+    # Report Output
+    print("\n[AI Analysis Result]")
     if risks:
         for risk in risks:
-            print(f"🔴 [FAIL] {risk['finding']} (-{policy[risk['control_id']]['weight']} pts)")
-            print(f"   └── Fix: {risk['recommendation']}")
+            weight = policy.get(risk['control_id'], {}).get('weight', 0)
+            print(f"[FAIL] {risk['finding']} (-{weight} pts)")
+            print(f"   -> Fix: {risk['recommendation']}")
     else:
-        print("✅ No risks detected.")
+        print("No risks detected.")
 
     # Final Grading
     print("\n" + "="*30)
-    print(f"📊 FINAL SCORE: {score}/100")
-    print(f"🏷️  STATUS: {label}")
-    print("="*30)
+    print(f"FINAL SCORE: {score}/100")
+    print(f"STATUS: {label}")
+    print("="*30 + "\n")
