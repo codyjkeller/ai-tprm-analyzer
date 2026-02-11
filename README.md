@@ -2,24 +2,45 @@
 
 ### Dynamic Vendor Risk Assessment & Compliance Auditing
 
-[![Status](https://img.shields.io/badge/Status-Active-success.svg)]()
-[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Logic](https://img.shields.io/badge/Logic-Dynamic_Standards-purple.svg)]()
-[![License](https://img.shields.io/badge/License-MIT-lightgrey)]()
+![Status](https://img.shields.io/badge/Status-Active-success.svg)
+![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
+![Logic](https://img.shields.io/badge/Logic-Dynamic_Standards-purple.svg)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
 ---
 
-###  Overview
+### Overview
 Legacy TPRM tools use static spreadsheets. This engine uses **"Context-Aware Logic"** and **"Policy-as-Code"** to dynamically generate risk frameworks based on the specific standards required for each vendor (NIST, CJIS, ISO, etc.).
 
 Instead of checking generic boxes, the system acts as an **Automated GRC Analyst**:
-* **High Assurance Vendor?** → Dynamically enforces **NIST 800-53 r5** controls.
-* **Law Enforcement Data?** → Automatically enforces **CJIS Policy v5.9** (FIPS encryption).
+* **High Assurance Vendor?** -> Dynamically enforces **NIST 800-53 r5** controls.
+* **Law Enforcement Data?** -> Automatically enforces **CJIS Policy v5.9** (FIPS encryption).
 * **AI Scoring:** Uses LLM logic to detect vague answers, critical gaps (MFA, Encryption), and calculates a precise risk score (0-100).
 
-![Risk Assessment CLI](https://via.placeholder.com/800x400?text=CLI+Screenshot+Coming+Soon)
+### Example Output
 
-###  Feature Highlights
+```text
+--- AI TPRM Analyzer v3.0 (Scoring Engine) ---
+
+Loading Active Frameworks: ['nist_800_53_r5', 'cjis_policy']
+
+Vendor Response:
+Security: We use DES encryption for legacy support.
+Access: Employees use MFA, contractors use passwords.
+
+[AI Analysis Result]
+[FAIL] Vendor uses legacy encryption (DES). (-25 pts)
+   -> Fix: Require AES-256.
+[FAIL] MFA not enforced for contractors. (-25 pts)
+   -> Fix: Enforce MFA immediately.
+
+==============================
+FINAL SCORE: 50/100
+STATUS: HIGH RISK (Reject)
+==============================
+```
+
+### Feature Highlights
 * **Dynamic Policy Library:** Toggle active frameworks (NIST, CJIS, ISO, CIS) via a simple YAML config.
 * **Weighted Scoring Engine:** Calculates a precise risk score (0-100) based on control weights and critical failures.
 * **AI-Driven Analysis:** Detects vague or non-compliant answers (e.g., "We use proprietary encryption" instead of "AES-256").
@@ -27,7 +48,7 @@ Instead of checking generic boxes, the system acts as an **Automated GRC Analyst
 
 ---
 
-###  Quick Start
+### Quick Start
 
 #### 1. Clone the Repository
 ```bash
@@ -53,7 +74,7 @@ python src/analyze_vendor.py
 
 ---
 
-###  Architecture Logic
+### Architecture Logic
 
 ```mermaid
 graph TD
@@ -76,7 +97,7 @@ graph TD
 
 ---
 
-###  File Structure
+### File Structure
 
 ```text
 .
