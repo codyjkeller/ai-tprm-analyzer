@@ -1,0 +1,5 @@
+domain,status,finding,fix,Overall_Score
+Baseline: Access,FAIL,Contractors exempt from MFA.,Enforce SSO integration or unconditional MFA for all accounts.,15
+Baseline: Incident Response,FAIL,Vendor SLA (72h) exceeds limit (24h).,Renegotiate contract to ensure SEV1 reporting within 24h.,15
+Industry: Healthcare,FAIL,Missing HIPAA BAA.,Legal Hold: Do not onboard until HIPAA BAA is signed.,15
+Public Co: SOX/ITGC,FAIL,Segregation of Duties failure (Devs have Prod access).,Revoke developer access to Prod; Implement CI/CD pipelines.,15
