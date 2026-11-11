@@ -71,7 +71,8 @@ def _method_sentence(record: dict) -> str:
     method = record["method"]
     if method["evaluator"] == "rules":
         return METHOD_TEXT["rules"]
-    return METHOD_TEXT["ai"].format(provider=DISPLAY_NAMES.get(method["evaluator"], method["evaluator"]), model=method["model"])
+    provider = DISPLAY_NAMES.get(method["evaluator"], method["evaluator"])
+    return METHOD_TEXT["ai"].format(provider=provider, model=method["model"])
 
 
 def to_markdown(record: dict) -> str:
