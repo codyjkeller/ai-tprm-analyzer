@@ -1,0 +1,7 @@
+Vendor: Example Legacy Hosting Co.
+
+Security overview
+
+Accounts are created by hand when a manager emails the help desk.
+Employees use MFA, contractors use passwords.
+We use DES encryption for legacy support on data in transit.

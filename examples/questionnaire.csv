@@ -1,0 +1,4 @@
+Question,Answer
+How are user accounts created and removed?,Automated provisioning from our identity provider.
+Is multi-factor authentication required?,MFA is planned for next year. Today it is optional.
+How is data encrypted in transit?,TLS 1.2 with AES-256.
