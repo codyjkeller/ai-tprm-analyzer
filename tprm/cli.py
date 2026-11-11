@@ -16,7 +16,7 @@ from rich.table import Table
 
 from tprm import __version__
 from tprm.evaluate import FAIL, NEEDS_REVIEW, PASS, apply_guardrails
-from tprm.llm import PROVIDERS, EvaluationError, evaluate_llm, make_complete_fn, resolve_model
+from tprm.llm import DISPLAY_NAMES, PROVIDERS, EvaluationError, evaluate_llm, make_complete_fn, resolve_model
 from tprm.policy import PolicyError, load_policy
 from tprm.report import STATUS_TEXT, build_record, write_reports
 from tprm.rules import evaluate_rules
@@ -82,7 +82,7 @@ def run_analyze(args, console: Console) -> int:
     else:
         model = resolve_model(provider, args.model)
         complete = make_complete_fn(provider, model)
-        console.print(f"[yellow]Mode: AI review. Sending the vendor document text to {provider.title()} "
+        console.print(f"[yellow]Mode: AI review. Sending the vendor document text to {DISPLAY_NAMES[provider]} "
                       f"({escape(model)}).[/yellow]")
         with console.status("Waiting for the AI review..."):
             verdicts = evaluate_llm(policy, submission, complete)

@@ -12,6 +12,7 @@ from typing import Optional
 
 from tprm import __version__
 from tprm.evaluate import FAIL, NEEDS_REVIEW, PASS, Finding
+from tprm.llm import DISPLAY_NAMES
 from tprm.policy import Policy
 from tprm.scoring import Score
 from tprm.vendor import VendorSubmission
@@ -70,7 +71,7 @@ def _method_sentence(record: dict) -> str:
     method = record["method"]
     if method["evaluator"] == "rules":
         return METHOD_TEXT["rules"]
-    return METHOD_TEXT["ai"].format(provider=method["evaluator"].title(), model=method["model"])
+    return METHOD_TEXT["ai"].format(provider=DISPLAY_NAMES.get(method["evaluator"], method["evaluator"]), model=method["model"])
 
 
 def to_markdown(record: dict) -> str:

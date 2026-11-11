@@ -24,6 +24,7 @@ from tprm.vendor import VendorSubmission
 
 PROVIDERS = ("anthropic", "openai")
 DEFAULT_MODELS = {"anthropic": "claude-sonnet-5-5"}
+DISPLAY_NAMES = {"anthropic": "Anthropic", "openai": "OpenAI"}
 API_KEY_VARIABLES = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
 MAX_OUTPUT_TOKENS = 8000
 
