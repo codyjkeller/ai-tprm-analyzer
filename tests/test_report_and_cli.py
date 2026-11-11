@@ -118,12 +118,12 @@ def test_ai_review_through_the_cli(repo_root, tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(repo_root)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     reply = json.dumps({"findings": [{
-        "control_key": "cjis_policy.encryption", "status": "FAIL",
+        "control_key": "cjis_policy.encryption_in_transit", "status": "FAIL",
         "evidence": "We use DES encryption for legacy support on data in transit.",
         "rationale": "DES is not FIPS-approved.", "recommendation": "Require AES-256.",
     }, {
-        "control_key": "cjis_policy.advanced_auth", "status": "FAIL",
-        "evidence": "Employees use MFA, contractors use passwords.",
+        "control_key": "cjis_policy.mfa_non_privileged", "status": "FAIL",
+        "evidence": "Employees use multi-factor authentication, contractors use passwords.",
         "rationale": "Contractors are not covered.", "recommendation": "Require MFA for contractors.",
     }]})
     monkeypatch.setattr(cli, "make_complete_fn", lambda provider, model: (lambda system, user: reply))
@@ -133,7 +133,9 @@ def test_ai_review_through_the_cli(repo_root, tmp_path, monkeypatch, capsys):
     assert "Sending the vendor document text to Anthropic" in out
     record = json.loads(next(tmp_path.glob("*.json")).read_text(encoding="utf-8"))
     assert record["method"]["evaluator"] == "anthropic"
-    assert (record["result"]["failed"], record["result"]["needs_review"]) == (2, 2)
+    assert (record["result"]["failed"], record["result"]["needs_review"]) == (2, 4)
+    assert record["result"]["score"] == 0          # IA-2(2) is critical
+    assert record["result"]["critical_failures"] == ["IA-2(2)"]
 
 
 def test_errors_exit_with_code_2_and_a_plain_message(repo_root, tmp_path, monkeypatch, capsys):

@@ -102,22 +102,33 @@ Mode: offline keyword screen. Nothing leaves this computer.
 
   Result         Control                         Why
  ──────────────────────────────────────────────────────────────────────────────
-  Fail           5.10.1.2 Encryption in          The document mentions the
-                 Transit                         forbidden term 'DES'.
+  Fail           SC-13 Encryption in Transit     The document mentions the
+                                                 forbidden term 'DES'.
   Needs review   AC-2 Access Control             The document does not address
                                                  this control.
-  Needs review   IA-2(1) Identification &        The document does not address
-                 Authentication                  this control.
-  Pass           5.6.2.2 Advanced                Keyword match on 'MFA'. A
-                 Authentication                  keyword match does not prove
-                                                 the control covers everyone
-                                                 in scope.
+  Needs review   IA-2(1), IA-2(2)                The document does not address
+                 Identification &                this control.
+                 Authentication
+  Needs review   SC-28 Encryption at Rest        The document does not address
+                                                 this control.
+  Pass           IA-2(1) MFA for Privileged      Keyword match on
+                 Accounts                        'Multi-factor
+                                                 authentication'. A keyword
+                                                 match does not prove the
+                                                 control covers everyone in
+                                                 scope.
+  Pass           IA-2(2) MFA for                 Keyword match on
+                 Non-Privileged Accounts         'Multi-factor
+                                                 authentication'. A keyword
+                                                 match does not prove the
+                                                 control covers everyone in
+                                                 scope.
 
 ╭─────────────────────────────────── Result ───────────────────────────────────╮
 │ 🚫 HIGH RISK (Reject)                                                        │
 │ Score: 30 out of 100                                                         │
-│ 1 control(s) failed and 2 need a person to review. If every item under       │
-│ review is confirmed, the score would be 75.                                  │
+│ 1 control(s) failed and 3 need a person to review. If every item under       │
+│ review is confirmed, the score would be 85.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -159,7 +170,7 @@ python -m tprm analyze "path/to/vendor answers.pdf" --vendor-name "Acme Cloud"
 | Weakness | Cannot understand meaning. | Can differ between runs; needs provider approval in most companies. |
 | Best rating it can give | "Keyword screen passed (confirm before approving)". | Whatever your policy's thresholds allow. |
 
-**Why the keyword screen's passes need confirming.** Look at the example output above. "Employees use MFA, contractors use passwords" earned a Pass for the MFA requirement because the word "MFA" is present. A person, or the AI review, sees that contractors are not covered. The keyword screen is a first filter, not a verdict, which is why it can never award the top rating.
+**Why the keyword screen's passes need confirming.** Look at the example output above. The vendor wrote "Employees use multi-factor authentication, contractors use passwords". That earned a Pass on both MFA requirements because the words "multi-factor authentication" are present. A person, or the AI review, sees that contractors are not covered. The keyword screen is a first filter, not a verdict, which is why it can never award the top rating.
 
 ### Turning on AI review
 
@@ -199,7 +210,7 @@ Having a key in `.env` does not switch AI review on. It is used only when you pa
 
 ## Setting your own requirements
 
-Your requirements live in one file: `policies/vendor_standards.yaml`. It ships with a small **starter set** (8 requirements across NIST 800-53, CJIS, CIS, ISO 27001 and COSO). It is an illustration, not a complete control catalog. Replace or extend it with your organization's requirements before relying on results.
+Your requirements live in one file: `policies/vendor_standards.yaml`. It ships with a small **starter set** (10 requirements across NIST 800-53 Rev. 5, CJIS Security Policy v6.1, CIS, ISO 27001 and COSO). It is an illustration, not a complete control catalog. Replace or extend it with your organization's requirements before relying on results.
 
 ### Choose which standards apply
 
@@ -217,14 +228,14 @@ Lines starting with `#` are switched off. Remove the `#` to switch a standard on
 ```yaml
 frameworks:
   cjis_policy:
-    encryption:
-      id: "5.10.1.2"                        # Reference shown in the report
+    encryption_in_transit:
+      id: "SC-13"                           # Reference shown in the report
       domain: "Encryption in Transit"       # Short name
       required: true                        # false = reported but not scored
-      weight: 25                            # Importance. Higher counts for more.
-      description: "FIPS 140-2 certified encryption (128-bit min)."
-      acceptable_answers: ["FIPS 140-2", "AES-256"]   # Terms that indicate the requirement is met
-      forbidden_terms: ["Non-FIPS", "DES"]            # Terms that fail it outright
+      weight: 15                            # Importance. Higher counts for more.
+      description: "CJI in transit ... is encrypted with FIPS 140-3 certified modules ..."
+      acceptable_answers: ["FIPS 140-3", "AES-256"]   # Terms that indicate the requirement is met
+      forbidden_terms: ["Non-FIPS", "DES", "FIPS 140-2"]   # Terms that fail it outright
       # critical_flag: "Reason"             # Add this line to make the requirement non-negotiable
 ```
 
@@ -235,6 +246,10 @@ python -m tprm check-policy
 ```
 
 This lists every requirement that will be checked, or tells you exactly which line has a problem. A misspelled setting stops the tool instead of being ignored, so a typo cannot quietly weaken an assessment.
+
+### Keeping standards current
+
+Standards change. The CJIS entries follow **CJIS Security Policy v6.1** (published June 25, 2026), which uses NIST 800-53-style control IDs such as `IA-2(1)` and `SC-13` instead of the section numbers used up to v5.9. When a standard is revised, update the `id`, `description` and terms in the policy file; no code changes are needed.
 
 ### How the score is calculated
 
@@ -295,7 +310,6 @@ CI runs these on every push and pull request.
 │   └── vendor_standards.yaml # The "Brain": your requirements and scoring settings
 ├── examples/                 # Sample vendor files to try
 ├── tests/                    # Automated tests
-├── legacy/                   # Original demo scripts, kept for reference, not used
 ├── requirements.txt          # Dependencies
 └── README.md                 # Documentation
 ```

@@ -29,7 +29,7 @@ frameworks:
       acceptable_answers: ["Automated provisioning", "IdP Integration"]
     
     ia_control:
-      id: "IA-2(1)"
+      id: "IA-2(1), IA-2(2)"
       domain: "Identification & Authentication"
       required: true
       weight: 25
@@ -37,24 +37,45 @@ frameworks:
       acceptable_answers: ["MFA Enforced", "PIV/CAC"]
       critical_flag: "MFA not enforced"
 
-  # 2. CJIS Security Policy v5.9 (Law Enforcement)
+  # 2. CJIS Security Policy v6.1 (Law Enforcement), published 2026-06-25
+  # Control IDs follow the modernized, NIST 800-53-aligned structure used
+  # since v6.0. Source: FBI Requirements Companion Document v6.1.
   cjis_policy:
-    advanced_auth:
-      id: "5.6.2.2"
-      domain: "Advanced Authentication"
+    mfa_privileged:
+      id: "IA-2(1)"
+      domain: "MFA for Privileged Accounts"
       required: true
-      weight: 30
-      description: "MFA required for all access to CJI from outside a secure location."
-      acceptable_answers: ["AA Enforced", "MFA"]
-    
-    encryption:
-      id: "5.10.1.2"
+      weight: 15
+      description: "Multi-factor authentication for access to privileged accounts (CJIS Priority 1)."
+      acceptable_answers: ["MFA Enforced", "Multi-factor authentication", "PIV/CAC"]
+      critical_flag: "MFA not enforced for privileged accounts"
+
+    mfa_non_privileged:
+      id: "IA-2(2)"
+      domain: "MFA for Non-Privileged Accounts"
+      required: true
+      weight: 15
+      description: "Multi-factor authentication for access to non-privileged accounts (CJIS Priority 1)."
+      acceptable_answers: ["MFA Enforced", "Multi-factor authentication", "PIV/CAC"]
+      critical_flag: "MFA not enforced for non-privileged accounts"
+
+    encryption_in_transit:
+      id: "SC-13"
       domain: "Encryption in Transit"
       required: true
-      weight: 25
-      description: "FIPS 140-2 certified encryption (128-bit min)."
-      acceptable_answers: ["FIPS 140-2", "AES-256"]
-      forbidden_terms: ["Non-FIPS", "DES"]
+      weight: 15
+      description: "CJI in transit outside a physically secure location is encrypted with FIPS 140-3 certified modules or FIPS 197 (AES), with a symmetric key of at least 256 bits."
+      acceptable_answers: ["FIPS 140-3", "AES-256"]
+      # FIPS 140-2 certificates are not acceptable after 2026-09-21.
+      forbidden_terms: ["Non-FIPS", "DES", "3DES", "RC4", "AES-128", "128-bit", "FIPS 140-2"]
+
+    encryption_at_rest:
+      id: "SC-28"
+      domain: "Encryption at Rest"
+      required: true
+      weight: 10
+      description: "CJI at rest outside a physically secure location is encrypted with FIPS 140-3 certified modules or FIPS 197 (AES), with a symmetric key of at least 256 bits."
+      acceptable_answers: ["FIPS 140-3", "AES-256"]
 
   # 3. CIS Benchmarks v8 (Cyber Hygiene)
   cis_level_1:
