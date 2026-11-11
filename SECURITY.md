@@ -13,6 +13,15 @@ Only the current `main` branch is maintained.
 - **No network use by default.** The offline keyword screen makes no
   connections. AI review runs only when `--provider` or `TPRM_PROVIDER` is
   set, and then sends the vendor document's text to that provider.
+- **Connections are opt-in and narrow.** Slack, Jira and Confluence are
+  contacted only when requested on the command line. Addresses must be HTTPS,
+  requests time out, redirects are not followed, and a pasted Confluence
+  address is used only for its page number, so credentials go only to the
+  configured site. Messages to Slack are escaped and carry no vendor quotes.
+  Error messages never include the Slack webhook address.
+- **No login of its own.** The tool runs with the permissions and credentials
+  of the person or service account that starts it. Use least-privilege API
+  tokens and keep `.env` readable only by that account.
 - **Vendor documents are untrusted input.** They are size-limited, parsed
   without executing content, wrapped in a per-run random delimiter before
   being shown to a model, and scanned for instruction-like wording.
@@ -34,5 +43,8 @@ Only the current `main` branch is maintained.
 - The instruction-wording scan is a short pattern list and will miss
   rephrased attempts. The quote check is the control that matters.
 - Reports and vendor files are stored unencrypted on local disk.
-- The AI review path has automated tests against a stand-in model. Validate
-  it against your own provider account before relying on it.
+- The AI review path and the Slack, Jira and Confluence connections have
+  automated tests against stand-in servers. Validate each against your own
+  accounts before relying on it.
+- Credentials are read from a plain-text `.env` file. In production, inject
+  them from your secrets manager as environment variables instead.

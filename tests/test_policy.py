@@ -31,7 +31,7 @@ def test_every_framework_in_shipped_policy_is_valid(repo_root, tmp_path):
     document["active_frameworks"] = list(document["frameworks"])
     path = tmp_path / "all.yaml"
     path.write_text(yaml.safe_dump(document), encoding="utf-8")
-    assert len(load_policy(path).controls) == 10
+    assert len(load_policy(path).controls) == 15
 
 
 @pytest.mark.parametrize("change, message", [

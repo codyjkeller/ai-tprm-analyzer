@@ -122,5 +122,34 @@ def test_resolve_model(monkeypatch):
 def test_missing_api_key_is_explained():
     with pytest.raises(EvaluationError, match="ANTHROPIC_API_KEY is not set"):
         llm.make_complete_fn("anthropic", "m")
+    with pytest.raises(EvaluationError, match="AZURE_OPENAI_API_KEY is not set"):
+        llm.make_complete_fn("azure", "m")
+    with pytest.raises(EvaluationError, match="TPRM_BASE_URL is not set"):
+        llm.make_complete_fn("openai-compatible", "m")
     with pytest.raises(EvaluationError, match="Unknown provider"):
         llm.make_complete_fn("other", "m")
+
+
+def test_every_engine_has_a_display_name_and_settings():
+    assert set(llm.PROVIDERS) == set(llm.DISPLAY_NAMES) == set(llm.REQUIRED_SETTINGS)
+
+
+def test_vendor_ai_use_framework_flags_training_and_autonomy(repo_root, tmp_path):
+    import yaml
+
+    from tprm.policy import load_policy
+    from tprm.rules import evaluate_rules
+    from tprm.vendor import load_vendor
+
+    document = yaml.safe_load((repo_root / "policies" / "vendor_standards.yaml").read_text(encoding="utf-8"))
+    document["active_frameworks"] = ["vendor_ai_use"]
+    path = tmp_path / "ai.yaml"
+    path.write_text(yaml.safe_dump(document), encoding="utf-8")
+    policy = load_policy(path)
+    submission = load_vendor(repo_root / "examples" / "ai_vendor.txt")
+    findings = {f.control_id: f for f in apply_guardrails(evaluate_rules(policy, submission), policy, submission)}
+    assert findings["AI-04"].status == FAIL                # "fully autonomous"
+    assert findings["AI-01"].status == PASS
+    assert findings["AI-03"].status == PASS
+    assert findings["AI-02"].status == NEEDS_REVIEW        # "may be used to improve our models unless you opt out"
+    assert score_findings(list(findings.values()), policy).score == 40

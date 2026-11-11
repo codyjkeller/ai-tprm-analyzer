@@ -176,18 +176,30 @@ def load_vendor(path: Union[str, Path], name: Optional[str] = None) -> VendorSub
         except UnicodeDecodeError as error:
             raise VendorInputError(f"{path} is not UTF-8 text: {error}") from error
 
-    text = text.strip()
-    if not text:
+    if not text.strip():
         hint = " Scanned PDFs have no text layer; run OCR first." if extension == ".pdf" else ""
         raise VendorInputError(f"No text could be read from {path}.{hint}")
+    return submission_from_text(
+        text, source=str(path), sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+        name=name or detected_name, fallback_name=path.stem.replace("_", " ").replace("-", " ").title(),
+    )
+
+
+def submission_from_text(text: str, source: str, sha256: Optional[str] = None, name: Optional[str] = None,
+                         fallback_name: str = "Vendor") -> VendorSubmission:
+    """Applies the size limit and the instruction-wording scan to any vendor text."""
+    text = text.strip()
+    if not text:
+        raise VendorInputError(f"No text could be read from {source}.")
     limit = max_chars()
     if len(text) > limit:
         # Refuse instead of cutting: a partial read could miss the one
         # sentence that fails a control.
         raise VendorInputError(
-            f"{path} contains {len(text):,} characters; the limit is {limit:,}. "
+            f"{source} contains {len(text):,} characters; the limit is {limit:,}. "
             "Split the document or raise TPRM_MAX_CHARS."
         )
+    detected_name = name
 
     if not detected_name:
         # A first line such as "Vendor: Acme Cloud Inc." names the vendor.
@@ -205,9 +217,9 @@ def load_vendor(path: Union[str, Path], name: Optional[str] = None) -> VendorSub
         )
 
     return VendorSubmission(
-        name=name or detected_name or path.stem.replace("_", " ").replace("-", " ").title(),
-        path=str(path),
+        name=detected_name or fallback_name,
+        path=source,
         text=text,
-        sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+        sha256=sha256 or hashlib.sha256(text.encode("utf-8")).hexdigest(),
         warnings=warnings,
     )

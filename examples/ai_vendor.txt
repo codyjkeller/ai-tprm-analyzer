@@ -1,0 +1,9 @@
+Vendor: Example AgentDesk AI
+
+How we use AI
+
+Our support product uses AI agents to draft and send replies to your customers.
+We maintain an AI inventory and publish our AI subprocessors on our trust page.
+Customer data may be used to improve our models unless you opt out.
+Each agent runs under a service account per agent with scoped credentials.
+Agents are fully autonomous. Replies go to customers with no human review.

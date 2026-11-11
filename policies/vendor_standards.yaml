@@ -14,6 +14,7 @@ active_frameworks:
   - "nist_800_53_r5"
   - "cjis_policy"
   # - "iso_27001"
+  # - "vendor_ai_use"   # Switch on for vendors that use AI or AI agents on your data
   
 # --- FRAMEWORK DEFINITIONS ---
 frameworks:
@@ -115,3 +116,51 @@ frameworks:
       weight: 15
       description: "Demonstrates commitment to integrity and ethical values."
       acceptable_answers: ["Code of Conduct", "Ethics Policy"]
+
+  # 6. Vendor use of AI and AI agents (organization-defined)
+  # These are this organization's own requirements, not citations of an
+  # external standard. Adjust the wording and weights to your AI policy.
+  # They are best assessed with AI review; keywords are a weak signal here.
+  vendor_ai_use:
+    ai_inventory:
+      id: "AI-01"
+      domain: "AI Use Disclosure"
+      required: true
+      weight: 20
+      description: "The vendor discloses every AI system and AI agent that processes customer data, including third-party model providers."
+      acceptable_answers: ["AI inventory", "list of AI systems", "AI subprocessors"]
+
+    no_training:
+      id: "AI-02"
+      domain: "Training on Customer Data"
+      required: true
+      weight: 25
+      description: "Customer data is not used to train or fine-tune AI models, by the vendor or its model providers, without written customer consent."
+      acceptable_answers: ["not used to train", "no training on customer data", "zero data retention"]
+      forbidden_terms: ["used to train our models", "used to improve our models"]
+      critical_flag: "Customer data used for AI training without consent"
+
+    agent_permissions:
+      id: "AI-03"
+      domain: "AI Agent Permissions"
+      required: true
+      weight: 20
+      description: "AI agents act with least-privilege, individually identifiable credentials, and their access can be revoked."
+      acceptable_answers: ["least privilege", "scoped credentials", "service account per agent"]
+
+    human_oversight:
+      id: "AI-04"
+      domain: "Human Oversight"
+      required: true
+      weight: 20
+      description: "A person approves AI agent actions that change, delete, or disclose customer data."
+      acceptable_answers: ["human in the loop", "human approval", "human review"]
+      forbidden_terms: ["fully autonomous"]
+
+    agent_logging:
+      id: "AI-05"
+      domain: "AI Activity Logging"
+      required: true
+      weight: 15
+      description: "Actions taken by AI agents are logged and attributable to the agent and the requesting user."
+      acceptable_answers: ["agent actions are logged", "audit log", "audit trail"]

@@ -22,10 +22,17 @@ from tprm.evaluate import RawVerdict
 from tprm.policy import Policy
 from tprm.vendor import VendorSubmission
 
-PROVIDERS = ("anthropic", "openai")
+PROVIDERS = ("anthropic", "openai", "azure", "openai-compatible")
 DEFAULT_MODELS = {"anthropic": "claude-sonnet-5-5"}
-DISPLAY_NAMES = {"anthropic": "Anthropic", "openai": "OpenAI"}
-API_KEY_VARIABLES = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
+DISPLAY_NAMES = {"anthropic": "Anthropic", "openai": "OpenAI", "azure": "Azure OpenAI",
+                 "openai-compatible": "your OpenAI-compatible endpoint"}
+# Settings each engine needs before a request is made.
+REQUIRED_SETTINGS = {
+    "anthropic": ("ANTHROPIC_API_KEY",),
+    "openai": ("OPENAI_API_KEY",),
+    "azure": ("AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT", "OPENAI_API_VERSION"),
+    "openai-compatible": ("TPRM_BASE_URL",),
+}
 MAX_OUTPUT_TOKENS = 8000
 
 # (system_prompt, user_prompt) -> reply text
@@ -133,9 +140,9 @@ def make_complete_fn(provider: str, model: str) -> CompleteFn:
     """Builds the function that calls the provider. SDKs are imported only when used."""
     if provider not in PROVIDERS:
         raise EvaluationError(f"Unknown provider '{provider}'. Choose one of: {', '.join(PROVIDERS)}")
-    key_variable = API_KEY_VARIABLES[provider]
-    if not os.getenv(key_variable):
-        raise EvaluationError(f"{key_variable} is not set. Add it to your .env file (see .env.example).")
+    for variable in REQUIRED_SETTINGS[provider]:
+        if not os.getenv(variable):
+            raise EvaluationError(f"{variable} is not set. Add it to your .env file (see .env.example).")
 
     if provider == "anthropic":
         import anthropic
@@ -153,13 +160,25 @@ def make_complete_fn(provider: str, model: str) -> CompleteFn:
 
     import openai
 
-    client = openai.OpenAI()
+    extra: dict = {"response_format": {"type": "json_object"}}
+    if provider == "azure":
+        # Reads AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY and OPENAI_API_VERSION.
+        # The "model" is the name of your deployment.
+        client = openai.AzureOpenAI()
+    elif provider == "openai-compatible":
+        # Any service that speaks the OpenAI chat API: a company AI gateway,
+        # Google Gemini's compatible endpoint, or a model hosted on your own
+        # network (Ollama, vLLM). Not every one supports response_format.
+        client = openai.OpenAI(base_url=os.environ["TPRM_BASE_URL"], api_key=os.getenv("TPRM_API_KEY") or "not-needed")
+        extra = {}
+    else:
+        client = openai.OpenAI()
 
     def complete(system: str, user: str) -> str:
         response = client.chat.completions.create(
             model=model,
-            response_format={"type": "json_object"},
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            **extra,
         )
         return response.choices[0].message.content or ""
 

@@ -24,6 +24,7 @@
 | Vendor documents are confidential | By default everything runs on your computer and nothing is sent anywhere. AI review is a separate, explicit choice. |
 | AI can make things up | Every AI pass or fail must quote the vendor's document, and the code checks the quote is really there. If it is not, the item goes to a person. |
 | A vendor could hide instructions to the AI in a document | Such text is flagged in the report, and it cannot produce a pass without a real quote. |
+| Results could leak into chat or tickets | Slack and Jira are used only when you ask, and they receive the summary, not quotes from the vendor's document. |
 | Unclear answers get waved through | Anything vague, partial or missing is marked "Needs review" and earns no points. |
 | Results need to stand up later | Each report records the date, the tool version, and a fingerprint of the exact vendor file and policy used. |
 
@@ -192,6 +193,63 @@ python -m tprm analyze examples/weak_vendor.txt --provider openai --model <model
 
 Having a key in `.env` does not switch AI review on. It is used only when you pass `--provider` or set `TPRM_PROVIDER`.
 
+### Using the AI your company already has
+
+| `--provider` | Use it when | Settings in `.env` |
+| :--- | :--- | :--- |
+| `anthropic` | You have an Anthropic account. | `ANTHROPIC_API_KEY` |
+| `openai` | You have an OpenAI account. | `OPENAI_API_KEY`, and `--model` |
+| `azure` | Your company uses Azure OpenAI. | `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `OPENAI_API_VERSION`, and `--model` set to your deployment name |
+| `openai-compatible` | Your company has an internal AI gateway, or runs a model on its own network. | `TPRM_BASE_URL`, optionally `TPRM_API_KEY`, and `--model` |
+
+With `openai-compatible` pointed at a model on your own network, AI review runs without the vendor's document leaving your organization. The safety checks are the same whichever engine you choose.
+
+---
+
+## Connections (optional)
+
+Each connection is off until you ask for it on the command line. The tool has no login of its own: it runs as whoever starts it and uses the credentials in that person's `.env` file.
+
+| You want to | Add to the command | Settings in `.env` |
+| :--- | :--- | :--- |
+| Post a short summary to a Slack channel | `--slack` | `SLACK_WEBHOOK_URL` |
+| Open a Jira issue with the result and the report attached | `--jira` | `ATLASSIAN_BASE_URL`, `ATLASSIAN_EMAIL`, `ATLASSIAN_API_TOKEN`, `JIRA_PROJECT_KEY` |
+| Read the vendor's answers from a Confluence page | `confluence:<page ID or address>` in place of the file | `ATLASSIAN_BASE_URL`, `ATLASSIAN_EMAIL`, `ATLASSIAN_API_TOKEN` |
+
+```bash
+python -m tprm analyze "vendor answers.pdf" --slack --jira
+python -m tprm analyze confluence:123456789 --jira
+```
+
+**Setting them up**
+
+- **Slack:** in Slack, create an app with an *Incoming Webhook* for the channel you want, and paste the webhook address into `.env`. Anyone holding that address can post to the channel, so treat it like a password.
+- **Jira and Confluence (Atlassian Cloud):** create an API token at [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens). `ATLASSIAN_BASE_URL` is your site address, for example `https://yourcompany.atlassian.net`. Use an account that can only do what is needed: create issues in one project, read the pages you assess.
+
+**What gets sent**
+
+- Slack and Jira receive the vendor name, rating, score, and the list of failed and open requirements with recommended actions. They do **not** receive quotes from the vendor's document. The Jira issue also gets the full report as an attachment.
+- If a connection fails, the report files are still written and the command ends with an error so a script can notice.
+
+Atlassian Data Center (self-hosted) is not supported; it uses a different sign-in method.
+
+---
+
+## Assessing a vendor's use of AI
+
+Many vendors now run AI agents over customer data. The policy file includes an optional set of requirements for that, `vendor_ai_use`: disclosure of AI systems and model providers, no training on your data without consent, least-privilege agent credentials, human approval of agent actions, and agent activity logging. These are organization-defined requirements for you to adapt, not citations of an external standard.
+
+Switch it on by removing the `#` in `policies/vendor_standards.yaml`:
+
+```yaml
+active_frameworks:
+  - "nist_800_53_r5"
+  - "cjis_policy"
+  - "vendor_ai_use"
+```
+
+Try it with `python -m tprm analyze examples/ai_vendor.txt`. These requirements are about meaning more than vocabulary, so AI review assesses them far better than the keyword screen.
+
 ---
 
 ## Reading the report
@@ -210,7 +268,7 @@ Having a key in `.env` does not switch AI review on. It is used only when you pa
 
 ## Setting your own requirements
 
-Your requirements live in one file: `policies/vendor_standards.yaml`. It ships with a small **starter set** (10 requirements across NIST 800-53 Rev. 5, CJIS Security Policy v6.1, CIS, ISO 27001 and COSO). It is an illustration, not a complete control catalog. Replace or extend it with your organization's requirements before relying on results.
+Your requirements live in one file: `policies/vendor_standards.yaml`. It ships with a small **starter set** (15 requirements across NIST 800-53 Rev. 5, CJIS Security Policy v6.1, CIS, ISO 27001, COSO and vendor AI use). It is an illustration, not a complete control catalog. Replace or extend it with your organization's requirements before relying on results.
 
 ### Choose which standards apply
 
@@ -263,6 +321,7 @@ The rating comes from the `thresholds` at the top of the policy file. With the s
 
 - **Local by default.** Unless you pass `--provider` or set `TPRM_PROVIDER`, the tool makes no network connections.
 - **AI review is opt-in per run** and prints which provider is receiving the document.
+- **Connections are opt-in per run.** Slack, Jira and Confluence are contacted only when you pass `--slack`, `--jira` or `confluence:`. Addresses must be HTTPS, redirects are not followed, and credentials are sent only to the site you configured.
 - **Secrets** go in `.env`, which git ignores. Keys are never written to reports or the screen.
 - **Vendor documents are treated as untrusted.** The policy file is read with a safe YAML loader. Documents are size-limited and are refused, not cut short, if too large. Vendor text is escaped in reports, and spreadsheet formulas in CSV output are neutralized.
 - **Reports are not encrypted.** They contain vendor information. Store them where your organization keeps vendor records.
@@ -281,6 +340,8 @@ The rating comes from the `thresholds` at the top of the policy file. With the s
 | `No text could be read from ...pdf` | The PDF is a scanned image. Run OCR on it, or ask the vendor for a text version. |
 | `...contains N characters; the limit is 400,000` | Split the document, or set `TPRM_MAX_CHARS` in `.env`. |
 | `ANTHROPIC_API_KEY is not set` | Follow "Turning on AI review", or drop `--provider` to run offline. |
+| `Jira answered with status 401` | The e-mail address or API token in `.env` is wrong or expired. |
+| `Slack error: SLACK_WEBHOOK_URL is not set` | Follow "Connections", or drop `--slack`. The report was still written. |
 
 ---
 
@@ -302,7 +363,8 @@ CI runs these on every push and pull request.
 │   ├── policy.py             # Reads and validates the policy file
 │   ├── vendor.py             # Reads vendor files
 │   ├── rules.py              # Offline keyword screen
-│   ├── llm.py                # AI review (Anthropic, OpenAI)
+│   ├── llm.py                # AI review (Anthropic, OpenAI, Azure OpenAI, OpenAI-compatible)
+│   ├── connectors.py         # Slack, Jira and Confluence
 │   ├── evaluate.py           # Safety checks applied to every result
 │   ├── scoring.py            # Score and rating
 │   └── report.py             # Markdown, CSV and JSON reports

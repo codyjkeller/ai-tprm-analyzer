@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from rich import box
@@ -15,13 +16,14 @@ from rich.panel import Panel
 from rich.table import Table
 
 from tprm import __version__
+from tprm.connectors import ConnectorError, create_jira_issue, post_to_slack, read_confluence_page
 from tprm.evaluate import FAIL, NEEDS_REVIEW, PASS, apply_guardrails
 from tprm.llm import DISPLAY_NAMES, PROVIDERS, EvaluationError, evaluate_llm, make_complete_fn, resolve_model
 from tprm.policy import PolicyError, load_policy
 from tprm.report import STATUS_TEXT, build_record, write_reports
 from tprm.rules import evaluate_rules
 from tprm.scoring import score_findings
-from tprm.vendor import VendorInputError, load_vendor
+from tprm.vendor import VendorInputError, load_vendor, submission_from_text
 
 DEFAULT_POLICY = "policies/vendor_standards.yaml"
 STATUS_STYLE = {PASS: "green", FAIL: "red", NEEDS_REVIEW: "yellow"}
@@ -36,17 +38,24 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
 
     analyze = commands.add_parser("analyze", help="Assess one vendor file and write a report.")
-    analyze.add_argument("vendor_file", help="The vendor's answers: .json, .csv, .xlsx, .txt, .md or .pdf")
+    analyze.add_argument(
+        "vendor_file",
+        help="The vendor's answers: a .json, .csv, .xlsx, .txt, .md or .pdf file, "
+             "or confluence:<page ID or address> to read a Confluence page.",
+    )
     analyze.add_argument("--policy", default=DEFAULT_POLICY, help=f"Policy file (default: {DEFAULT_POLICY})")
     analyze.add_argument(
         "--provider", choices=("rules",) + PROVIDERS, default=None,
-        help="rules = offline keyword screen (default). anthropic / openai = AI review; "
-             "the vendor's text is sent to that provider.",
+        help="rules = offline keyword screen (default). Any other value = AI review; "
+             "the vendor's text is sent to that engine.",
     )
     analyze.add_argument("--model", default=None, help="Model name for AI review (or set TPRM_MODEL).")
     analyze.add_argument("--vendor-name", default=None, help="Vendor name to show in the report.")
     analyze.add_argument("--out", default="reports", help="Folder for report files (default: reports)")
     analyze.add_argument("--no-files", action="store_true", help="Print the result only; write no report files.")
+    analyze.add_argument("--slack", action="store_true", help="Post a short summary to Slack (SLACK_WEBHOOK_URL).")
+    analyze.add_argument("--jira", action="store_true",
+                         help="Create a Jira issue with the result and attach the report (ATLASSIAN_* settings).")
 
     check = commands.add_parser("check-policy", help="Validate the policy file and list what it will check.")
     check.add_argument("--policy", default=DEFAULT_POLICY, help=f"Policy file (default: {DEFAULT_POLICY})")
@@ -70,10 +79,16 @@ def run_check_policy(args, console: Console) -> int:
 
 def run_analyze(args, console: Console) -> int:
     policy = load_policy(args.policy)
-    submission = load_vendor(args.vendor_file, name=args.vendor_name)
+    if args.vendor_file.lower().startswith("confluence:"):
+        console.print("[dim]Reading the vendor document from Confluence.[/dim]")
+        title, text = read_confluence_page(args.vendor_file.split(":", 1)[1])
+        submission = submission_from_text(text, source=f"Confluence page: {title}",
+                                          name=args.vendor_name, fallback_name=title)
+    else:
+        submission = load_vendor(args.vendor_file, name=args.vendor_name)
     provider = args.provider or os.getenv("TPRM_PROVIDER", "").strip().lower() or "rules"
     if provider not in ("rules",) + PROVIDERS:
-        raise EvaluationError(f"TPRM_PROVIDER is '{provider}'. Use rules, anthropic or openai.")
+        raise EvaluationError(f"TPRM_PROVIDER is '{provider}'. Use rules or one of: {', '.join(PROVIDERS)}.")
 
     model: Optional[str] = None
     if provider == "rules":
@@ -82,7 +97,10 @@ def run_analyze(args, console: Console) -> int:
     else:
         model = resolve_model(provider, args.model)
         complete = make_complete_fn(provider, model)
-        console.print(f"[yellow]Mode: AI review. Sending the vendor document text to {DISPLAY_NAMES[provider]} "
+        destination = DISPLAY_NAMES[provider]
+        if provider == "openai-compatible":
+            destination = urlparse(os.getenv("TPRM_BASE_URL", "")).hostname or destination
+        console.print(f"[yellow]Mode: AI review. Sending the vendor document text to {escape(destination)} "
                       f"({escape(model)}).[/yellow]")
         with console.status("Waiting for the AI review..."):
             verdicts = evaluate_llm(policy, submission, complete)
@@ -111,12 +129,28 @@ def run_analyze(args, console: Console) -> int:
         title="Result", expand=False,
     ))
 
+    report_path = None
     if not args.no_files:
         paths = write_reports(record, Path(args.out))
+        report_path = paths["markdown"]
         console.print(f"Report for people:   {paths['markdown']}")
         console.print(f"Data for systems:    {paths['json']}  {paths['csv']}")
     console.print("[dim]This is decision support. A qualified person must review it before approving a vendor.[/dim]")
-    return 0
+
+    # Connections run last, so a failed notification never loses the report.
+    exit_code = 0
+    for wanted, label, action in (
+        (args.slack, "Slack", lambda: post_to_slack(record) or "summary posted"),
+        (args.jira, "Jira", lambda: create_jira_issue(record, report_path)),
+    ):
+        if not wanted:
+            continue
+        try:
+            console.print(f"{label}: {escape(str(action()))}")
+        except ConnectorError as error:
+            Console(stderr=True).print(f"[bold red]{label} error:[/bold red] {escape(str(error))}")
+            exit_code = 3
+    return exit_code
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -127,7 +161,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         if args.command == "check-policy":
             return run_check_policy(args, console)
         return run_analyze(args, console)
-    except (PolicyError, VendorInputError, EvaluationError) as error:
+    except (PolicyError, VendorInputError, EvaluationError, ConnectorError) as error:
         Console(stderr=True).print(f"[bold red]Error:[/bold red] {escape(str(error))}")
         return 2
 
