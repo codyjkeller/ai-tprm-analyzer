@@ -14,6 +14,7 @@ active_frameworks:
   - "nist_800_53_r5"
   - "cjis_policy"
   # - "iso_27001"
+  # - "vendor_ai_use"   # Switch on for vendors that use AI or AI agents on your data
   
 # --- FRAMEWORK DEFINITIONS ---
 frameworks:
@@ -29,7 +30,7 @@ frameworks:
       acceptable_answers: ["Automated provisioning", "IdP Integration"]
     
     ia_control:
-      id: "IA-2(1)"
+      id: "IA-2(1), IA-2(2)"
       domain: "Identification & Authentication"
       required: true
       weight: 25
@@ -37,24 +38,45 @@ frameworks:
       acceptable_answers: ["MFA Enforced", "PIV/CAC"]
       critical_flag: "MFA not enforced"
 
-  # 2. CJIS Security Policy v5.9 (Law Enforcement)
+  # 2. CJIS Security Policy v6.1 (Law Enforcement), published 2026-06-25
+  # Control IDs follow the modernized, NIST 800-53-aligned structure used
+  # since v6.0. Source: FBI Requirements Companion Document v6.1.
   cjis_policy:
-    advanced_auth:
-      id: "5.6.2.2"
-      domain: "Advanced Authentication"
+    mfa_privileged:
+      id: "IA-2(1)"
+      domain: "MFA for Privileged Accounts"
       required: true
-      weight: 30
-      description: "MFA required for all access to CJI from outside a secure location."
-      acceptable_answers: ["AA Enforced", "MFA"]
-    
-    encryption:
-      id: "5.10.1.2"
+      weight: 15
+      description: "Multi-factor authentication for access to privileged accounts (CJIS Priority 1)."
+      acceptable_answers: ["MFA Enforced", "Multi-factor authentication", "PIV/CAC"]
+      critical_flag: "MFA not enforced for privileged accounts"
+
+    mfa_non_privileged:
+      id: "IA-2(2)"
+      domain: "MFA for Non-Privileged Accounts"
+      required: true
+      weight: 15
+      description: "Multi-factor authentication for access to non-privileged accounts (CJIS Priority 1)."
+      acceptable_answers: ["MFA Enforced", "Multi-factor authentication", "PIV/CAC"]
+      critical_flag: "MFA not enforced for non-privileged accounts"
+
+    encryption_in_transit:
+      id: "SC-13"
       domain: "Encryption in Transit"
       required: true
-      weight: 25
-      description: "FIPS 140-2 certified encryption (128-bit min)."
-      acceptable_answers: ["FIPS 140-2", "AES-256"]
-      forbidden_terms: ["Non-FIPS", "DES"]
+      weight: 15
+      description: "CJI in transit outside a physically secure location is encrypted with FIPS 140-3 certified modules or FIPS 197 (AES), with a symmetric key of at least 256 bits."
+      acceptable_answers: ["FIPS 140-3", "AES-256"]
+      # FIPS 140-2 certificates are not acceptable after 2026-09-21.
+      forbidden_terms: ["Non-FIPS", "DES", "3DES", "RC4", "AES-128", "128-bit", "FIPS 140-2"]
+
+    encryption_at_rest:
+      id: "SC-28"
+      domain: "Encryption at Rest"
+      required: true
+      weight: 10
+      description: "CJI at rest outside a physically secure location is encrypted with FIPS 140-3 certified modules or FIPS 197 (AES), with a symmetric key of at least 256 bits."
+      acceptable_answers: ["FIPS 140-3", "AES-256"]
 
   # 3. CIS Benchmarks v8 (Cyber Hygiene)
   cis_level_1:
@@ -94,3 +116,51 @@ frameworks:
       weight: 15
       description: "Demonstrates commitment to integrity and ethical values."
       acceptable_answers: ["Code of Conduct", "Ethics Policy"]
+
+  # 6. Vendor use of AI and AI agents (organization-defined)
+  # These are this organization's own requirements, not citations of an
+  # external standard. Adjust the wording and weights to your AI policy.
+  # They are best assessed with AI review; keywords are a weak signal here.
+  vendor_ai_use:
+    ai_inventory:
+      id: "AI-01"
+      domain: "AI Use Disclosure"
+      required: true
+      weight: 20
+      description: "The vendor discloses every AI system and AI agent that processes customer data, including third-party model providers."
+      acceptable_answers: ["AI inventory", "list of AI systems", "AI subprocessors"]
+
+    no_training:
+      id: "AI-02"
+      domain: "Training on Customer Data"
+      required: true
+      weight: 25
+      description: "Customer data is not used to train or fine-tune AI models, by the vendor or its model providers, without written customer consent."
+      acceptable_answers: ["not used to train", "no training on customer data", "zero data retention"]
+      forbidden_terms: ["used to train our models", "used to improve our models"]
+      critical_flag: "Customer data used for AI training without consent"
+
+    agent_permissions:
+      id: "AI-03"
+      domain: "AI Agent Permissions"
+      required: true
+      weight: 20
+      description: "AI agents act with least-privilege, individually identifiable credentials, and their access can be revoked."
+      acceptable_answers: ["least privilege", "scoped credentials", "service account per agent"]
+
+    human_oversight:
+      id: "AI-04"
+      domain: "Human Oversight"
+      required: true
+      weight: 20
+      description: "A person approves AI agent actions that change, delete, or disclose customer data."
+      acceptable_answers: ["human in the loop", "human approval", "human review"]
+      forbidden_terms: ["fully autonomous"]
+
+    agent_logging:
+      id: "AI-05"
+      domain: "AI Activity Logging"
+      required: true
+      weight: 15
+      description: "Actions taken by AI agents are logged and attributable to the agent and the requesting user."
+      acceptable_answers: ["agent actions are logged", "audit log", "audit trail"]

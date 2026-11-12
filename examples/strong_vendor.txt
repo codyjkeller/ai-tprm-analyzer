@@ -1,0 +1,9 @@
+Vendor: Example SecureCloud Inc.
+
+Security overview
+
+Account management uses automated provisioning through IdP integration with our HR system.
+MFA enforced for every account, privileged and non-privileged, for all employees and contractors.
+All remote access to customer data requires MFA.
+Data in transit is protected with FIPS 140-3 validated modules using AES-256.
+Data at rest is encrypted with AES-256 using FIPS 140-3 validated modules.

@@ -1,0 +1,5 @@
+-r requirements.txt
+pytest
+ruff
+bandit
+reportlab   # builds a small PDF for the PDF-reading test
