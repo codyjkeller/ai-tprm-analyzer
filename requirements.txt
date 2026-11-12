@@ -2,7 +2,7 @@
 pydantic>=2.5.0,<3       # Validates the policy file and AI replies
 pyyaml>=6.0.1,<7         # Reads the policy file (safe_load only)
 rich>=13.0.0             # Terminal formatting
-python-dotenv>=1.0.0,<2  # Reads API keys from a local .env file
+python-dotenv>=1.2.4,<2  # Reads API keys from a local .env file
 
 # Vendor file formats
 openpyxl>=3.1.0,<4       # Excel questionnaires
