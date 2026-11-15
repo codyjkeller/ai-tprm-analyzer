@@ -16,6 +16,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from tprm import __version__
+from tprm.cloud_files import fetch_google_drive_file, fetch_sharepoint_file, load_cloud_vendor
 from tprm.connectors import ConnectorError, create_jira_issue, post_to_slack, read_confluence_page
 from tprm.evaluate import FAIL, NEEDS_REVIEW, PASS, apply_guardrails
 from tprm.llm import DISPLAY_NAMES, PROVIDERS, EvaluationError, evaluate_llm, make_complete_fn, resolve_model
@@ -41,7 +42,9 @@ def build_parser() -> argparse.ArgumentParser:
     analyze.add_argument(
         "vendor_file",
         help="The vendor's answers: a .json, .csv, .xlsx, .txt, .md or .pdf file, "
-             "or confluence:<page ID or address> to read a Confluence page.",
+             "or confluence:<page ID or address> to read a Confluence page, "
+             "gdrive:<file ID or address> for Google Drive, "
+             "sharepoint:<file address> for SharePoint or OneDrive.",
     )
     analyze.add_argument("--policy", default=DEFAULT_POLICY, help=f"Policy file (default: {DEFAULT_POLICY})")
     analyze.add_argument(
@@ -84,6 +87,14 @@ def run_analyze(args, console: Console) -> int:
         title, text = read_confluence_page(args.vendor_file.split(":", 1)[1])
         submission = submission_from_text(text, source=f"Confluence page: {title}",
                                           name=args.vendor_name, fallback_name=title)
+    elif args.vendor_file.lower().startswith("gdrive:"):
+        console.print("[dim]Reading the vendor document from Google Drive.[/dim]")
+        file_name, content = fetch_google_drive_file(args.vendor_file.split(":", 1)[1])
+        submission = load_cloud_vendor(file_name, content, "Google Drive", args.vendor_name)
+    elif args.vendor_file.lower().startswith(("sharepoint:", "onedrive:")):
+        console.print("[dim]Reading the vendor document from Microsoft 365.[/dim]")
+        file_name, content = fetch_sharepoint_file(args.vendor_file.split(":", 1)[1])
+        submission = load_cloud_vendor(file_name, content, "Microsoft 365", args.vendor_name)
     else:
         submission = load_vendor(args.vendor_file, name=args.vendor_name)
     provider = args.provider or os.getenv("TPRM_PROVIDER", "").strip().lower() or "rules"

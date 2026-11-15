@@ -1,16 +1,19 @@
 # Core
 pydantic>=2.5.0,<3       # Validates the policy file and AI replies
-pyyaml>=6.0.1,<7         # Reads the policy file (safe_load only)
+pyyaml>=6.0.3,<7         # Reads the policy file (safe_load only)
 rich>=13.0.0             # Terminal formatting
-python-dotenv>=1.0.0,<2  # Reads API keys from a local .env file
+python-dotenv>=1.2.4,<2  # Reads API keys from a local .env file
 
 # Vendor file formats
 openpyxl>=3.1.0,<4       # Excel questionnaires
 pypdf>=5.0.0             # PDF documents
 
 # Connections to Slack, Jira and Confluence (only used with --slack, --jira, confluence:)
-httpx>=0.27.0,<1
+httpx>=0.28.1,<1
+
+# Signs the Google service account sign-in request (only used with gdrive:)
+cryptography>=42
 
 # AI review (optional at run time: only loaded when you pass --provider)
-anthropic>=0.40.0
-openai>=1.50.0
+anthropic>=2.7.0
+openai>=3.48.0
