@@ -208,23 +208,29 @@ With `openai-compatible` pointed at a model on your own network, AI review runs 
 
 ## Connections (optional)
 
-Each connection is off until you ask for it on the command line. The tool has no login of its own: it runs as whoever starts it and uses the credentials in that person's `.env` file.
+Each connection is off until you ask for it on the command line. The tool has no login of its own: it runs as whoever starts it and uses the credentials in that person's `.env` file. That is also why there is no single sign-on (SSO) setting: SSO protects a login page, and a command-line tool has none. Access is controlled by who can run it and who holds the credentials, so keep those in your secrets manager or CI secret store, and let your identity provider govern the accounts behind them.
 
 | You want to | Add to the command | Settings in `.env` |
 | :--- | :--- | :--- |
 | Post a short summary to a Slack channel | `--slack` | `SLACK_WEBHOOK_URL` |
 | Open a Jira issue with the result and the report attached | `--jira` | `ATLASSIAN_BASE_URL`, `ATLASSIAN_EMAIL`, `ATLASSIAN_API_TOKEN`, `JIRA_PROJECT_KEY` |
 | Read the vendor's answers from a Confluence page | `confluence:<page ID or address>` in place of the file | `ATLASSIAN_BASE_URL`, `ATLASSIAN_EMAIL`, `ATLASSIAN_API_TOKEN` |
+| Read the vendor's file from Google Drive | `gdrive:<file ID or address>` in place of the file | `GOOGLE_SERVICE_ACCOUNT_FILE` |
+| Read the vendor's file from SharePoint or OneDrive | `sharepoint:<file address>` in place of the file | `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET` |
 
 ```bash
 python -m tprm analyze "vendor answers.pdf" --slack --jira
 python -m tprm analyze confluence:123456789 --jira
+python -m tprm analyze "gdrive:https://drive.google.com/file/d/FILE_ID/view"
+python -m tprm analyze "sharepoint:https://yourcompany.sharepoint.com/sites/Vendors/Shared Documents/Acme/answers.pdf"
 ```
 
 **Setting them up**
 
 - **Slack:** in Slack, create an app with an *Incoming Webhook* for the channel you want, and paste the webhook address into `.env`. Anyone holding that address can post to the channel, so treat it like a password.
 - **Jira and Confluence (Atlassian Cloud):** create an API token at [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens). `ATLASSIAN_BASE_URL` is your site address, for example `https://yourcompany.atlassian.net`. Use an account that can only do what is needed: create issues in one project, read the pages you assess.
+- **Google Drive:** in Google Cloud, create a service account, turn on the Google Drive API for its project, and download a key file (JSON). Put the file's location in `GOOGLE_SERVICE_ACCOUNT_FILE`. Then share each vendor file, or the folder that holds them, with the service account's e-mail address as *Viewer*. The tool can read only what has been shared with that account. Google Docs and Sheets are converted on the way out; other files must be one of the supported types.
+- **SharePoint and OneDrive for work:** in Microsoft Entra ID, register an app, add a client secret, and grant it a Microsoft Graph *application* permission to read files. `Sites.Selected` with read access granted to the one site that holds vendor files is the narrowest choice; `Files.Read.All` reads every site. Put the tenant ID, client ID and secret in `.env`. Give the tool the file's own address (in SharePoint, open the file's details and copy its path). Addresses made with *Copy link* also work, but Microsoft requires a write-level permission (`Files.ReadWrite.All`) to look those up, so prefer the file's own address. For US government tenants (GCC High), set `MS_CLOUD=usgov`. Personal OneDrive accounts are not supported.
 
 **What gets sent**
 
@@ -321,7 +327,7 @@ The rating comes from the `thresholds` at the top of the policy file. With the s
 
 - **Local by default.** Unless you pass `--provider` or set `TPRM_PROVIDER`, the tool makes no network connections.
 - **AI review is opt-in per run** and prints which provider is receiving the document.
-- **Connections are opt-in per run.** Slack, Jira and Confluence are contacted only when you pass `--slack`, `--jira` or `confluence:`. Addresses must be HTTPS, redirects are not followed, and credentials are sent only to the site you configured.
+- **Connections are opt-in per run.** Slack, Jira, Confluence, Google Drive and Microsoft 365 are contacted only when you pass `--slack`, `--jira`, `confluence:`, `gdrive:` or `sharepoint:`. Drive and Microsoft 365 access is read-only, and a downloaded file is deleted from this computer as soon as it has been read. Addresses must be HTTPS, redirects are not followed, and credentials are sent only to the site you configured.
 - **Secrets** go in `.env`, which git ignores. Keys are never written to reports or the screen.
 - **Vendor documents are treated as untrusted.** The policy file is read with a safe YAML loader. Documents are size-limited and are refused, not cut short, if too large. Vendor text is escaped in reports, and spreadsheet formulas in CSV output are neutralized.
 - **Reports are not encrypted.** They contain vendor information. Store them where your organization keeps vendor records.
@@ -365,6 +371,7 @@ CI runs these on every push and pull request.
 │   ├── rules.py              # Offline keyword screen
 │   ├── llm.py                # AI review (Anthropic, OpenAI, Azure OpenAI, OpenAI-compatible)
 │   ├── connectors.py         # Slack, Jira and Confluence
+│   ├── cloud_files.py        # Google Drive, SharePoint and OneDrive (read-only)
 │   ├── evaluate.py           # Safety checks applied to every result
 │   ├── scoring.py            # Score and rating
 │   └── report.py             # Markdown, CSV and JSON reports
